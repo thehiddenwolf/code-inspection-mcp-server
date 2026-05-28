@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "clean": "node -e \"const fs = require('fs'); const path = require('path'); ['packages', 'cli'].forEach(p => { if (fs.existsSync(p)) { if (p === 'cli') { const d = path.join(p, 'dist'); if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true }); } else { fs.readdirSync(p).forEach(f => { const d = path.join(p, f, 'dist'); if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true }); }); } } });\"",
+    "clean": "node -e \"const fs = require('fs'); const path = require('path'); if (fs.existsSync('tsconfig.tsbuildinfo')) fs.rmSync('tsconfig.tsbuildinfo', { force: true }); ['packages', 'cli'].forEach(p => { if (fs.existsSync(p)) { if (p === 'cli') { const d = path.join(p, 'dist'); if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true }); const b = path.join(p, 'tsconfig.tsbuildinfo'); if (fs.existsSync(b)) fs.rmSync(b, { force: true }); } else { fs.readdirSync(p).forEach(f => { const pkgDir = path.join(p, f); if (fs.existsSync(pkgDir) && fs.statSync(pkgDir).isDirectory()) { const d = path.join(pkgDir, 'dist'); if (fs.existsSync(d)) fs.rmSync(d, { recursive: true, force: true }); const b = path.join(pkgDir, 'tsconfig.tsbuildinfo'); if (fs.existsSync(b)) fs.rmSync(b, { force: true }); } }); } } });\"",
     "clean:all": "npm run clean && node -e \"const fs = require('fs'); const path = require('path'); const del = p => { if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }); }; del('node_modules'); del('package-lock.json'); ['packages', 'cli'].forEach(p => { if (fs.existsSync(p) && fs.statSync(p).isDirectory()) { fs.readdirSync(p).forEach(f => { del(path.join(p, f, 'node_modules')); }); } });\"",
     "test": "vitest",
     "lint": "tsc --noEmit",
