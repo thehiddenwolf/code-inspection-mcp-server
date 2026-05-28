@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Hermes MCP Gateway — MCP SDK v2 server that registers and executes all tools.
+ * Code Inspection MCP Gateway — MCP SDK v2 server that registers and executes all tools.
  *
  * Supported transports: stdio (default), SSE (optional via --sse).
  */
@@ -391,7 +391,7 @@ function generateDiTemplate(className: string, interfaces: string[], language: '
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const SERVER_INFO = {
-  name: 'hermes-mcp-gateway',
+  name: 'code-inspection-mcp-gateway',
   version: PACKAGE_VERSION ?? '0.1.0',
 };
 
@@ -682,7 +682,7 @@ export async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  log.info('Hermes MCP Gateway ready');
+  log.info('Code Inspection MCP Gateway ready');
   log.info(`Registered ${TOOLS.length} tools`, { toolCount: TOOLS.length });
   for (const t of TOOLS) {
     log.debug(`  ${t.name}`, { tool: t.name });

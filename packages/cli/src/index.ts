@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * @hermes/cli — Unified CLI entry point for Hermes MCP Toolset.
+ * @hermes/cli — Unified CLI entry point for Code Inspection MCP Server.
  *
  * Provides:
  *   - MCP server management (start, start:gateway, start:ts, etc.)
@@ -24,8 +24,8 @@ import { auditCommand } from './commands/audit.js';
 const program = new Command();
 
 program
-  .name('hermes-mcp')
-  .description('Hermes MCP Toolset — CLI')
+  .name('code-inspection-mcp')
+  .description('Code Inspection MCP Server — CLI')
   .version('0.1.0');
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -230,14 +230,14 @@ program
 async function startGateway(transportType: string, port: number): Promise<void> {
   if (transportType === 'sse') {
     console.error('SSE transport requires additional setup. Launching with stdio instead.');
-    console.error('For SSE, use: hermes-mcp start:gateway --transport sse --port 3000');
+    console.error('For SSE, use: code-inspection-mcp start:gateway --transport sse --port 3000');
   }
 
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error(`Hermes MCP Gateway ready (${TOOLS.length} tools, stdio transport)`);
+  console.error(`Code Inspection MCP Gateway ready (${TOOLS.length} tools, stdio transport)`);
 }
 
 /**
@@ -304,7 +304,7 @@ async function startFilteredServer(namespace: string, transportType: string, por
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`Hermes MCP "${namespace}" server ready (${filteredTools.length} tools)`);
+  console.error(`Code Inspection MCP "${namespace}" server ready (${filteredTools.length} tools)`);
 }
 
 /**

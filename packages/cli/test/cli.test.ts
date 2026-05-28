@@ -1,7 +1,7 @@
 /**
  * CLI smoke tests — @hermes/cli
  *
- * Tests the hermes-mcp CLI commands via subprocess execution.
+ * Tests the code-inspection-mcp CLI commands via subprocess execution.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -26,7 +26,7 @@ function runCli(args: string): { stdout: string; stderr: string } {
   }
 }
 
-describe('hermes-mcp CLI', () => {
+describe('code-inspection-mcp CLI', () => {
   it('should output version with --version', () => {
     const { stdout } = runCli('--version');
     expect(stdout).toMatch(/0\.1\.0/);
@@ -53,7 +53,7 @@ describe('hermes-mcp CLI', () => {
 
   it('should show help with help command', () => {
     const { stdout } = runCli('help');
-    expect(stdout).toContain('hermes-mcp');
+    expect(stdout).toContain('code-inspection-mcp');
     expect(stdout).toContain('start');
     expect(stdout).toContain('list');
     expect(stdout).toContain('run');
@@ -64,7 +64,7 @@ describe('hermes-mcp CLI', () => {
 
   it('should show help with --help', () => {
     const { stdout } = runCli('--help');
-    expect(stdout).toContain('hermes-mcp');
+    expect(stdout).toContain('code-inspection-mcp');
     expect(stdout).toContain('start');
     expect(stdout).toContain('list');
   });
