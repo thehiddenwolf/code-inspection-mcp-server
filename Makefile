@@ -61,12 +61,10 @@ dev:
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 clean:
-	rm -rf packages/*/dist
-	rm -rf cli/dist
+	$(NPM) run clean
 
-clean-all: clean
-	rm -rf node_modules
-	rm -rf packages/*/node_modules
+clean-all:
+	$(NPM) run clean:all
 
 # ── Format ───────────────────────────────────────────────────────────────────
 format:
