@@ -289,6 +289,79 @@ describe('FileIndexer', () => {
         expect(implementsEdges.some((e) => e.from === 'sym:DerivedClass@/test/Program.vb' && e.to === 'sym:IAnotherInterface')).toBe(true);
       });
     });
+
+    describe('Python Support', () => {
+      it('extracts imports from Python code', () => {
+        const content = `
+          import os, sys
+          from path import join, split
+          import numpy as np
+        `;
+        const result = indexer.indexFile('/test/script.py', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        const sources = importEdges.map((e) => e.to);
+
+        expect(sources).toContain('file:os');
+        expect(sources).toContain('file:sys');
+        expect(sources).toContain('file:path');
+        expect(sources).toContain('file:numpy');
+      });
+
+      it('extracts declarations and extends edges from Python code', () => {
+        const content = `
+          class MyClass(BaseClass):
+              def calculate_value(self, x):
+                  pass
+          def global_func():
+              pass
+        `;
+        const result = indexer.indexFile('/test/script.py', content);
+
+        const classSym = result.symbols.find((s) => s.name === 'MyClass');
+        expect(classSym).toBeDefined();
+        expect(classSym!.type).toBe('class');
+
+        const methodSym = result.symbols.find((s) => s.name === 'calculate_value');
+        expect(methodSym).toBeDefined();
+        expect(methodSym!.type).toBe('function');
+
+        const funcSym = result.symbols.find((s) => s.name === 'global_func');
+        expect(funcSym).toBeDefined();
+        expect(funcSym!.type).toBe('function');
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:MyClass@/test/script.py' && e.to === 'sym:BaseClass')).toBe(true);
+      });
+    });
+
+    describe('SQL Support', () => {
+      it('extracts imports and declarations from SQL code', () => {
+        const content = `
+          \\i other_file.sql
+          CREATE TABLE Users (
+              Id INT PRIMARY KEY,
+              ProfileId INT REFERENCES Profiles(Id)
+          );
+          CREATE VIEW UserProfiles AS SELECT * FROM Users JOIN Profiles ON Users.ProfileId = Profiles.Id;
+        `;
+        const result = indexer.indexFile('/test/schema.sql', content);
+        
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        expect(importEdges.map((e) => e.to)).toContain('file:other_file.sql');
+
+        const tableSym = result.symbols.find((s) => s.name === 'Users');
+        expect(tableSym).toBeDefined();
+        expect(tableSym!.type).toBe('class');
+
+        const viewSym = result.symbols.find((s) => s.name === 'UserProfiles');
+        expect(viewSym).toBeDefined();
+        expect(viewSym!.type).toBe('class');
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:Users@/test/schema.sql' && e.to === 'sym:Profiles')).toBe(true);
+        expect(extendsEdges.some((e) => e.from === 'sym:UserProfiles@/test/schema.sql' && e.to === 'sym:Users')).toBe(true);
+      });
+    });
   });
 
   // ── indexDirectory ──────────────────────────────────────────────────────

@@ -18,10 +18,14 @@ export function registerParser(parser: LanguageParser): void {
 import { JavaScriptParser } from './javascript.js';
 import { CSharpParser } from './csharp.js';
 import { VBNetParser } from './vbnet.js';
+import { PythonParser } from './python.js';
+import { SQLParser } from './sql.js';
 
 registerParser(JavaScriptParser);
 registerParser(CSharpParser);
 registerParser(VBNetParser);
+registerParser(PythonParser);
+registerParser(SQLParser);
 
 export function getParserForFile(filePath: string): LanguageParser | undefined {
   const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
