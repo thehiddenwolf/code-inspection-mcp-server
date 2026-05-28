@@ -1,0 +1,35 @@
+{
+  "name": "@hermes/token-squeezer",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": "./dist/*"
+  },
+  "bin": {
+    "token-squeezer": "./dist/index.js"
+  },
+  "dependencies": {
+    "@hermes/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.0"
+  },
+  "optionalDependencies": {
+    "web-tree-sitter": "^0.26.9",
+    "tree-sitter-wasms": "^0.1.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "tsc --watch"
+  }
+}

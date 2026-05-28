@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "solid_srp": "warning",
+    "solid_ocp": "warning",
+    "solid_lsp": "error",
+    "solid_isp": "info",
+    "solid_dip": "warning"
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".git",
+    ".hermes",
+    "coverage",
+    "test",
+    "fixtures"
+  ]
+}

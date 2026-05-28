@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../mcp-gateway" },
+    { "path": "../token-squeezer" },
+    { "path": "../architecture-shepherd" },
+    { "path": "../repograph" },
+    { "path": "../pattern-miner" },
+    { "path": "../solid-enforcer" },
+    { "path": "../task-router" }
+  ]
+}

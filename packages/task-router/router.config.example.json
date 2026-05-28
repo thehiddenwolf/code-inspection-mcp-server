@@ -1,0 +1,29 @@
+{
+  "$schema": "./router-config.schema.json",
+  "comment": "Example router-config.json — copy to your project root or set ROUTER_CONFIG_PATH",
+
+  "metricWeights": {
+    "cyclomatic": 0.40,
+    "loc-impact": 0.25,
+    "density": 0.15,
+    "dependencies": 0.12,
+    "interface-surface": 0.08
+  },
+
+  "algorithm": "weighted",
+
+  "thresholds": {
+    "tier1Max": 15,
+    "tier2Max": 40,
+    "tier3Max": 80
+  },
+
+  "tierModels": {
+    "tier1": ["gpt-4o-mini"],
+    "tier2": ["claude-sonnet-4"],
+    "tier3": ["claude-opus-4"],
+    "tier4": ["claude-opus-4", "deepseek-v4-pro"]
+  },
+
+  "verbose": false
+}

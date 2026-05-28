@@ -1,0 +1,36 @@
+{
+  "name": "@hermes/mcp-toolset",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "cli"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest",
+    "lint": "tsc --noEmit",
+    "lint:eslint": "eslint 'packages/*/src/**/*.ts'",
+    "lint:tsc": "tsc --noEmit",
+    "dev": "tsc -b --watch",
+    "check-solid": "npx tsx packages/solid-enforcer/src/cli.ts",
+    "check-solid:diff": "npx tsx packages/solid-enforcer/src/cli.ts --compare-branch origin/main",
+    "depcruise": "depcruise packages/ --ts-config tsconfig.json",
+    "ci": "npm run lint:tsc && npm run lint:eslint && npm run build && npm test && npm run check-solid:diff && npm run depcruise"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.9.1",
+    "@vitest/coverage-v8": "3.2.4",
+    "dependency-cruiser": "^16.10.0",
+    "eslint-plugin-sonarjs": "4.0.3",
+    "pino": "^10.3.1",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "8.60.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "ignore": "^7.0.5"
+  }
+}

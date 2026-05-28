@@ -1,0 +1,8 @@
+name: mcp-integration
+version: 1.0.0
+description: "Hermes MCP Toolset Integration Layer: Squeezes code file reads and routes simple tasks to cheaper models."
+author: "Spectra"
+hooks:
+  - transform_tool_result
+  - pre_llm_call
+  - post_llm_call

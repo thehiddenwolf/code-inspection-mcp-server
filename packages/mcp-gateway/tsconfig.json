@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@hermes/shared/*": ["../shared/dist/*"],
+      "@hermes/token-squeezer/*": ["../token-squeezer/dist/*"],
+      "@hermes/architecture-shepherd/*": ["../architecture-shepherd/dist/*"],
+      "@hermes/pattern-miner/*": ["../pattern-miner/dist/*"],
+      "@hermes/repograph/*": ["../repograph/dist/*"],
+      "@hermes/task-router/*": ["../task-router/dist/*"],
+      "@hermes/solid-enforcer/*": ["../solid-enforcer/dist/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../token-squeezer" },
+    { "path": "../architecture-shepherd" },
+    { "path": "../pattern-miner" },
+    { "path": "../repograph" },
+    { "path": "../task-router" },
+    { "path": "../solid-enforcer" }
+  ]
+}

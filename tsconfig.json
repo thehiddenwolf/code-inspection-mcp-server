@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "downlevelIteration": true
+  },
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/mcp-gateway" },
+    { "path": "./packages/architecture-shepherd" },
+    { "path": "./packages/repograph" },
+    { "path": "./packages/token-squeezer" },
+    { "path": "./packages/pattern-miner" },
+    { "path": "./packages/task-router" },
+    { "path": "./packages/solid-enforcer" },
+    { "path": "./packages/cli" }
+  ],
+  "files": []
+}

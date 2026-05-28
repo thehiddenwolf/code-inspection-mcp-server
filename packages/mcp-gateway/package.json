@@ -1,0 +1,26 @@
+{
+  "name": "@hermes/mcp-gateway",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@hermes/shared": "*",
+    "@hermes/token-squeezer": "*",
+    "@hermes/architecture-shepherd": "*",
+    "@hermes/pattern-miner": "*",
+    "@hermes/repograph": "*",
+    "@hermes/task-router": "*",
+    "@hermes/solid-enforcer": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@hermes/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "hermes-mcp": "./dist/index.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "zod": "^3.23.0",
+    "@hermes/shared": "*",
+    "@hermes/mcp-gateway": "*",
+    "@hermes/token-squeezer": "*",
+    "@hermes/architecture-shepherd": "*",
+    "@hermes/repograph": "*",
+    "@hermes/pattern-miner": "*",
+    "@hermes/solid-enforcer": "*",
+    "@hermes/task-router": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  }
+}
