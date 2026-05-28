@@ -58,22 +58,77 @@ const log = createLogger('hermes-mcp-gateway');
 const manifestStore = new Map<string, Manifest>();
 const customPatterns = new Map<string, any>();
 
-// Initialize RepoGraph components
-const store = createGraphStore('.code-inspect-mcp/repograph.db');
-const graph = new GraphEngine();
-const indexer = new FileIndexer(store);
-
-// Load persisted repograph nodes
-try {
-  const nodes = store.getAllNodes();
-  const edges = store.getAllEdges();
-  for (const n of nodes) graph.addNode(n);
-  for (const e of edges) {
-    try { graph.addEdge(e); } catch { /* ignore duplicates/stale */ }
-  }
-} catch (err) {
-  log.warn('Could not load persisted repograph store', { err });
+// Initialize RepoGraph components with multi-repo support
+interface RepoContext {
+  store: any;
+  graph: GraphEngine;
+  indexer: FileIndexer;
 }
+
+const repoContexts = new Map<string, RepoContext>();
+let lastActiveRoot = path.resolve(process.cwd());
+
+function findProjectRoot(startPath: string): string {
+  let current = path.resolve(startPath);
+  try {
+    const stat = fs.statSync(current);
+    if (!stat.isDirectory()) {
+      current = path.dirname(current);
+    }
+  } catch {
+    if (path.extname(current)) {
+      current = path.dirname(current);
+    }
+  }
+
+  while (true) {
+    const hermesDir = path.join(current, '.code-inspect-mcp');
+    const gitDir = path.join(current, '.git');
+    if (fs.existsSync(hermesDir) || fs.existsSync(gitDir)) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return path.resolve(startPath);
+}
+
+function getRepoContext(targetPath?: string): RepoContext {
+  const root = targetPath ? findProjectRoot(targetPath) : lastActiveRoot;
+  lastActiveRoot = root;
+
+  let context = repoContexts.get(root);
+  if (!context) {
+    log.info(`Initializing RepoGraph context for root: ${root}`);
+    const dbPath = path.join(root, '.code-inspect-mcp', 'repograph.db');
+    const store = createGraphStore(dbPath);
+    const graph = new GraphEngine();
+    const indexer = new FileIndexer(store);
+
+    // Load persisted repograph nodes
+    try {
+      const nodes = store.getAllNodes();
+      const edges = store.getAllEdges();
+      for (const n of nodes) graph.addNode(n);
+      for (const e of edges) {
+        try { graph.addEdge(e); } catch { /* ignore duplicates/stale */ }
+      }
+      log.info(`Loaded ${nodes.length} nodes and ${edges.length} edges for root: ${root}`);
+    } catch (err) {
+      log.warn(`Could not load persisted repograph store for ${root}`, { err });
+    }
+
+    context = { store, graph, indexer };
+    repoContexts.set(root, context);
+  }
+  return context;
+}
+
+// Pre-initialize for process.cwd() to preserve default behavior
+getRepoContext();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tool Definitions
@@ -497,6 +552,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
       const scope = (args?.scope as any) ?? 'project';
+      const { graph } = getRepoContext(filePath);
       const queryResult = graph.query({ query, filePath, scope });
       resultText = JSON.stringify({
         matched: queryResult.nodes.length,
@@ -507,6 +563,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
     case 'repograph_index': {
       const dirPath = String(args?.path ?? '');
+      const { graph, indexer } = getRepoContext(dirPath);
       const project = indexer.indexDirectory(dirPath);
       const stats = indexer.applyProjectToGraph(graph, project);
       resultText = JSON.stringify({

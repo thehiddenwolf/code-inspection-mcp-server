@@ -31,6 +31,8 @@ import type { IndexedFile, IndexedProject } from './file-indexer.js';
 import type { QueryScope } from './types.js';
 import { createGraphStore, loadEngineFromStore } from './graph-store.js';
 import type { GraphStore } from './graph-store.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Logger
@@ -39,66 +41,112 @@ import type { GraphStore } from './graph-store.js';
 const log = createLogger('hermes-repograph');
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// State
+// State & Multi-Repo Context Support
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const store: GraphStore = createGraphStore('.code-inspect-mcp/repograph.db');
-const graph = new GraphEngine();
-const indexer = new FileIndexer(store);
-
-// Track indexed files to avoid re-indexing
-const indexedFiles = new Set<string>();
-const fileHashes = new Map<string, string>();
-let currentProjectRoot: string | undefined;
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Persistence helpers
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function loadPersistedGraph(): void {
-  try {
-    const nodes = store.getAllNodes();
-    const edges = store.getAllEdges();
-
-    for (const node of nodes) graph.addNode(node);
-    for (const edge of edges) {
-      try { graph.addEdge(edge); } catch { /* stale edge */ }
-    }
-
-    // Restore indexed file tracking from store
-    const storedProjectRoot = store.getMeta('projectRoot');
-    if (storedProjectRoot) currentProjectRoot = storedProjectRoot;
-
-    // Rebuild indexed file set from store — scan DB for files with nodes
-    const allNodes = store.getAllNodes();
-    const fileSet = new Set(allNodes.map((n) => n.filePath));
-    for (const f of fileSet) indexedFiles.add(f);
-
-    // Restore file hashes from store
-    for (const f of fileSet) {
-      const hash = store.getFileHash(f);
-      if (hash) fileHashes.set(f, hash);
-    }
-
-    log.info('Loaded persisted graph', {
-      nodes: graph.nodeCount,
-      edges: graph.edgeCount,
-      files: indexedFiles.size,
-    });
-  } catch (err) {
-    log.warn('Could not load persisted graph (first run or corrupt store)', { err });
-  }
+interface RepoContext {
+  store: GraphStore;
+  graph: GraphEngine;
+  indexer: FileIndexer;
+  indexedFiles: Set<string>;
+  fileHashes: Map<string, string>;
+  currentProjectRoot: string | undefined;
 }
 
-function saveGraphState(): void {
+const repoContexts = new Map<string, RepoContext>();
+let lastActiveRoot = path.resolve(process.cwd());
+
+function findProjectRoot(startPath: string): string {
+  let current = path.resolve(startPath);
   try {
-    // Store project root as metadata
-    if (currentProjectRoot) {
-      store.setMeta('projectRoot', currentProjectRoot);
+    const stat = fs.statSync(current);
+    if (!stat.isDirectory()) {
+      current = path.dirname(current);
+    }
+  } catch {
+    if (path.extname(current)) {
+      current = path.dirname(current);
+    }
+  }
+
+  while (true) {
+    const hermesDir = path.join(current, '.code-inspect-mcp');
+    const gitDir = path.join(current, '.git');
+    if (fs.existsSync(hermesDir) || fs.existsSync(gitDir)) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      break;
+    }
+    current = parent;
+  }
+  return path.resolve(startPath);
+}
+
+function getRepoContext(targetPath?: string): RepoContext {
+  const root = targetPath ? findProjectRoot(targetPath) : lastActiveRoot;
+  lastActiveRoot = root;
+
+  let context = repoContexts.get(root);
+  if (!context) {
+    log.info(`Initializing RepoGraph context for root: ${root}`);
+    const dbPath = path.join(root, '.code-inspect-mcp', 'repograph.db');
+    const store = createGraphStore(dbPath);
+    const graph = new GraphEngine();
+    const indexer = new FileIndexer(store);
+    const indexedFiles = new Set<string>();
+    const fileHashes = new Map<string, string>();
+    let currentProjectRoot: string | undefined = root;
+
+    // Load persisted graph
+    try {
+      const nodes = store.getAllNodes();
+      const edges = store.getAllEdges();
+
+      for (const node of nodes) graph.addNode(node);
+      for (const edge of edges) {
+        try { graph.addEdge(edge); } catch { /* stale edge */ }
+      }
+
+      // Restore indexed file tracking from store
+      const storedProjectRoot = store.getMeta('projectRoot');
+      if (storedProjectRoot) currentProjectRoot = storedProjectRoot;
+
+      // Rebuild indexed file set from store
+      const allNodes = store.getAllNodes();
+      const fileSet = new Set(allNodes.map((n) => n.filePath));
+      for (const f of fileSet) indexedFiles.add(f);
+
+      // Restore file hashes from store
+      for (const f of fileSet) {
+        const hash = store.getFileHash(f);
+        if (hash) fileHashes.set(f, hash);
+      }
+
+      log.info(`Loaded persisted graph for ${root}`, {
+        nodes: graph.nodeCount,
+        edges: graph.edgeCount,
+        files: indexedFiles.size,
+      });
+    } catch (err) {
+      log.warn(`Could not load persisted graph for ${root} (first run or corrupt store)`, { err });
+    }
+
+    context = { store, graph, indexer, indexedFiles, fileHashes, currentProjectRoot };
+    repoContexts.set(root, context);
+  }
+  return context;
+}
+
+function saveGraphState(context: RepoContext): void {
+  try {
+    if (context.currentProjectRoot) {
+      context.store.setMeta('projectRoot', context.currentProjectRoot);
     }
     log.debug('Graph state synced to store', {
-      nodes: graph.nodeCount,
-      edges: graph.edgeCount,
+      nodes: context.graph.nodeCount,
+      edges: context.graph.edgeCount,
     });
   } catch (err) {
     log.error('Failed to persist graph state', { err });
@@ -143,6 +191,7 @@ const TOOLS: ToolDef[] = [
       const filePath = args.file_path ? String(args.file_path) : undefined;
       const scope = (args.scope as QueryScope) ?? 'project';
 
+      const { graph } = getRepoContext(filePath);
       const result = graph.query({ query, filePath, scope });
 
       return {
@@ -196,6 +245,9 @@ const TOOLS: ToolDef[] = [
       const filePath = String(args.file_path ?? '');
       const content = args.content ? String(args.content) : undefined;
 
+      const context = getRepoContext(filePath);
+      const { graph, indexer, indexedFiles, fileHashes, store } = context;
+
       if (indexedFiles.has(filePath)) {
         return {
           content: [
@@ -248,7 +300,7 @@ const TOOLS: ToolDef[] = [
       for (const edge of indexed.edges) {
         try { store.insertEdge(edge); } catch { /* duplicate */ }
       }
-      saveGraphState();
+      saveGraphState(context);
 
       return {
         content: [
@@ -332,14 +384,19 @@ const TOOLS: ToolDef[] = [
         };
       }
 
+      const context = getRepoContext(dirPath);
+      const { graph, indexer, indexedFiles } = context;
+
       const project = indexer.indexDirectory(dirPath);
       const stats = indexer.applyProjectToGraph(graph, project);
-      currentProjectRoot = dirPath;
+      context.currentProjectRoot = dirPath;
 
       // Track all indexed files
       for (const f of project.files) {
         indexedFiles.add(f.filePath);
       }
+
+      saveGraphState(context);
 
       return {
         content: [
@@ -394,6 +451,7 @@ const TOOLS: ToolDef[] = [
       const symbol = String(args.symbol ?? '');
       const projectPath = args.project_path ? String(args.project_path) : undefined;
 
+      const { graph } = getRepoContext(projectPath);
       const results = graph.findReferences(symbol, projectPath);
 
       return {
@@ -453,6 +511,7 @@ const TOOLS: ToolDef[] = [
       const symbol = String(args.symbol ?? '');
       const filePath = args.file_path ? String(args.file_path) : undefined;
 
+      const { graph } = getRepoContext(filePath);
       const definitions = graph.findDefinitions(symbol, filePath);
 
       return {
@@ -552,7 +611,7 @@ async function main(): Promise<void> {
   log.info('Starting RepoGraph MCP server with stdio transport');
 
   // Load persisted graph from previous sessions
-  loadPersistedGraph();
+  getRepoContext();
 
   const server = createServer();
   const transport = new StdioServerTransport();
