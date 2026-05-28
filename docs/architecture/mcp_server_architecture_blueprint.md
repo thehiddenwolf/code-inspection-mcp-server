@@ -60,7 +60,7 @@ All packages inherit from `@hermes/shared`, which provides:
 
 Each tool is exposed through standard MCP endpoints under its namespace. The definitions are structured using `@modelcontextprotocol/sdk` v1.x or v2.x and Zod schema validations.
 
-### 3.1 TokenSqueezer (`token_squeezer.squeeze`)
+### 3.1 TokenSqueezer (`token_squeezer_squeeze`)
 AST-based context reduction returning structural class/method skeletons.
 - **Input Schema:**
   - `code` (string, required): Source code to reduce.
@@ -76,7 +76,7 @@ AST-based context reduction returning structural class/method skeletons.
   - `squeezed_tokens` (number).
   - `reduction_ratio` (number).
 
-### 3.2 PatternMiner (`pattern_miner.scan` / `pattern_miner.find_clones`)
+### 3.2 PatternMiner (`pattern_miner_scan` / `pattern_miner_find_clones`)
 Scans codebases for structural duplicates and anti-patterns.
 - **Input Schema (`find_clones`):**
   - `fragment` (string, required): The target code snippet.
@@ -86,7 +86,7 @@ Scans codebases for structural duplicates and anti-patterns.
 - **Output:**
   - `clones` (array): List of matching code blocks, locations, and similarity/confidence metrics.
 
-### 3.3 TaskRouter (`task_router.decompose` / `task_router.estimate`)
+### 3.3 TaskRouter (`task_router_decompose` / `task_router_estimate`)
 Calculates cyclomatic complexity, lines of code (LOC) impact, and routes subtasks to appropriate models.
 - **Input Schema (`decompose`):**
   - `task_description` (string, required): Prompt/spec of the parent task.
@@ -94,7 +94,7 @@ Calculates cyclomatic complexity, lines of code (LOC) impact, and routes subtask
 - **Output:**
   - `subtasks` (array): Broken down subtasks, each labeled with a recommended LLM tier (`premium` vs. `cheap`) and complexity score.
 
-### 3.4 RepoGraph (`repograph.query` / `repograph.index`)
+### 3.4 RepoGraph (`repograph_query` / `repograph_index`)
 Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / DeusData parsing backend).
 - **Input Schema (`query`):**
   - `query` (string, required): Structured/natural language query.
@@ -112,13 +112,13 @@ Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / De
          ▼
  [Hermes Skill Runner] ───────────────┐
          │                            │
-         │ (1) task_router.decompose()│
+         │ (1) task_router_decompose()│
          ▼                            ▼
  [Microtasks Graph] ──────────► [Route to cheap / premium models]
          │
-         ├─► (2) pattern_miner.find_clones()   --> Detect and prevent duplicates
-         ├─► (3) repograph.query()             --> Fetch relational context
-         ├─► (4) token_squeezer.squeeze()      --> Compress context file reads
+         ├─► (2) pattern_miner_find_clones()   --> Detect and prevent duplicates
+         ├─► (3) repograph_query()             --> Fetch relational context
+         ├─► (4) token_squeezer_squeeze()      --> Compress context file reads
          │
          ▼
  [LLM Code Execution]
@@ -126,8 +126,8 @@ Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / De
          ▼
  [Validation Gate]
          │
-         ├─► (5) solid_enforcer.audit()        --> SRP, DIP, LSP checks
-         ├─► (6) architecture_shepherd.check() --> Manifest compliance
+         ├─► (5) solid_enforcer_audit()        --> SRP, DIP, LSP checks
+         ├─► (6) architecture_shepherd_check() --> Manifest compliance
          │
          ▼
     [Merge / Commit]

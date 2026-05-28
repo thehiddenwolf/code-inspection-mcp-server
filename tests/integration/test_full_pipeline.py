@@ -53,9 +53,9 @@ class IntegrationRegistry:
     def dispatch(self, name: str, args: dict, **kwargs) -> str:
         # Map python-mcp-registry name to node-mcp-gateway name
         if "token_squeezer_squeeze" in name:
-            real_name = "token_squeezer.squeeze"
+            real_name = "token_squeezer_squeeze"
         elif "task_router_estimate" in name:
-            real_name = "task_router.estimate"
+            real_name = "task_router_estimate"
         else:
             real_name = name
 

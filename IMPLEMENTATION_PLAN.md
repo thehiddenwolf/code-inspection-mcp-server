@@ -60,14 +60,14 @@ Initialize the monorepo, define shared schemas, and stand up the MCP gateway wit
 ```typescript
 // Registered via mcp-gateway, all return "not implemented" until their phase
 [
-  "token_squeezer.squeeze",
-  "architecture_shepherd.load_manifest",
-  "architecture_shepherd.check",
-  "architecture_shepherd.check_diff",
-  "pattern_miner.scan",
-  "pattern_miner.find_dead_code",
-  "pattern_miner.get_pattern_catalog",
-  "pattern_miner.learn_pattern"
+  "token_squeezer_squeeze",
+  "architecture_shepherd_load_manifest",
+  "architecture_shepherd_check",
+  "architecture_shepherd_check_diff",
+  "pattern_miner_scan",
+  "pattern_miner_find_dead_code",
+  "pattern_miner_get_pattern_catalog",
+  "pattern_miner_learn_pattern"
 ]
 ```
 
@@ -115,7 +115,7 @@ Use **Tree-sitter WASM** grammars (not Babel, not native bindings). This gives z
 | `packages/token-squeezer/test/squeezer.test.ts` | Unit tests — token reduction ratios, language coverage |
 | `packages/token-squeezer/bench/benchmark.ts` | Benchmarks against real-world codebases |
 
-### MCP Tool: `token_squeezer.squeeze`
+### MCP Tool: `token_squeezer_squeeze`
 
 **Input (Zod schema):**
 ```typescript
@@ -182,9 +182,9 @@ Load ARCHITECTURE.md manifests, enforce layer boundaries and dependency rules ag
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `architecture_shepherd.load_manifest` | `{ path?: string }` | `{ manifest_id, project, layers[], global_rules[] }` |
-| `architecture_shepherd.check` | `{ paths: string[], manifest_id: string }` | `{ violations: Violation[], summary }` |
-| `architecture_shepherd.check_diff` | `{ diff: string, manifest_id: string }` | `{ violations: Violation[], summary }` |
+| `architecture_shepherd_load_manifest` | `{ path?: string }` | `{ manifest_id, project, layers[], global_rules[] }` |
+| `architecture_shepherd_check` | `{ paths: string[], manifest_id: string }` | `{ violations: Violation[], summary }` |
+| `architecture_shepherd_check_diff` | `{ diff: string, manifest_id: string }` | `{ violations: Violation[], summary }` |
 | `architecture_shepherd.suggest_manifest` | `{ path: string }` | `{ suggested_manifest, confidence }` |
 
 ### Exit Criteria
@@ -268,10 +268,10 @@ Code archaeology engine: dead code detection, anti-pattern scanning, code smells
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `pattern_miner.scan` | `{ paths: string[], patterns?: PatternFilter }` | `{ scan_id, findings[], summary }` |
-| `pattern_miner.find_dead_code` | `{ paths: string[], options?: DeadCodeOptions }` | `{ dead_functions[], unused_exports[], orphaned_modules[] }` |
-| `pattern_miner.get_pattern_catalog` | `{}` | `{ patterns: PatternDefinition[] }` |
-| `pattern_miner.learn_pattern` | `{ definition: PatternDefinition }` | `{ pattern_id }` |
+| `pattern_miner_scan` | `{ paths: string[], patterns?: PatternFilter }` | `{ scan_id, findings[], summary }` |
+| `pattern_miner_find_dead_code` | `{ paths: string[], options?: DeadCodeOptions }` | `{ dead_functions[], unused_exports[], orphaned_modules[] }` |
+| `pattern_miner_get_pattern_catalog` | `{}` | `{ patterns: PatternDefinition[] }` |
+| `pattern_miner_learn_pattern` | `{ definition: PatternDefinition }` | `{ pattern_id }` |
 
 ### Goal B — TaskRouter
 Complexity-based model routing for agentic code generation.
@@ -295,8 +295,8 @@ Complexity-based model routing for agentic code generation.
 | Tool | Input | Output |
 |------|-------|--------|
 | `task_router.analyze` | `{ analysis_target, custom_thresholds? }` | `{ complexity_score, metrics[], recommended_tier, reasoning }` |
-| `task_router.decompose` | `{ architectural_plan, codebase_path?, auto_route? }` | `{ tasks[], execution_plan }` |
-| `task_router.estimate_effort` | `{ file_path, change_description, model_tiers? }` | `{ estimated_tokens, cost_range }` |
+| `task_router_decompose` | `{ architectural_plan, codebase_path?, auto_route? }` | `{ tasks[], execution_plan }` |
+| `task_router_estimate_effort` | `{ file_path, change_description, model_tiers? }` | `{ estimated_tokens, cost_range }` |
 
 ### Exit Criteria
 - PatternMiner scans a real project and finds meaningful issues
@@ -335,7 +335,7 @@ Three-tier SOLID compliance system: preventive (scope context, DI templates), ev
 |------|-------|--------|
 | `solid_enforcer.scope_context` | `{ task_file, context_window?, strip_globals?, force_di_template? }` | `{ allowed_files, blocked_files, injected_template? }` |
 | `solid_enforcer.di_template` | `{ class_name, dependencies, language?, include_interface? }` | `{ template_code, interface_code }` |
-| `solid_enforcer.audit` | `{ code, language, checks?, complexity_threshold?, loc_threshold? }` | `{ overall_pass, checks[], summary }` |
+| `solid_enforcer_audit` | `{ code, language, checks?, complexity_threshold?, loc_threshold? }` | `{ overall_pass, checks[], summary }` |
 | `solid_enforcer.translate_prompt` | `{ abstract_directive, context }` | `{ translated_directives[], translation_strategy }` |
 
 ### Exit Criteria

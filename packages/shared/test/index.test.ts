@@ -426,12 +426,12 @@ describe('ToolInvocationEvent', () => {
     const result = ToolInvocationEvent.parse({
       event: 'tool.invocation',
       metadata: {
-        tool_name: 'token_squeezer.squeeze',
+        tool_name: 'token_squeezer_squeeze',
         timestamp: '2026-05-27T00:00:00Z',
       },
       input: { code: 'test', language: 'typescript' },
     });
-    expect(result.metadata.tool_name).toBe('token_squeezer.squeeze');
+    expect(result.metadata.tool_name).toBe('token_squeezer_squeeze');
   });
 });
 
@@ -440,7 +440,7 @@ describe('ToolResultEvent', () => {
     const result = ToolResultEvent.parse({
       event: 'tool.result',
       metadata: {
-        tool_name: 'token_squeezer.squeeze',
+        tool_name: 'token_squeezer_squeeze',
         timestamp: '2026-05-27T00:00:00Z',
       },
       output: 'squeezed result',
@@ -454,7 +454,7 @@ describe('ToolErrorEvent', () => {
     const result = ToolErrorEvent.parse({
       event: 'tool.error',
       metadata: {
-        tool_name: 'token_squeezer.squeeze',
+        tool_name: 'token_squeezer_squeeze',
         timestamp: '2026-05-27T00:00:00Z',
       },
       code: 'PARSE_ERROR',

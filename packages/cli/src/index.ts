@@ -125,7 +125,7 @@ program
 program
   .command('run')
   .description('Run a single MCP tool and output the result to stdout')
-  .argument('<tool>', 'Tool name (e.g. token_squeezer.squeeze)')
+  .argument('<tool>', 'Tool name (e.g. token_squeezer_squeeze)')
   .argument('[args]', 'JSON string of tool arguments')
   .action(async (tool: string, argsJson: string | undefined) => {
     await runTool(tool, argsJson);

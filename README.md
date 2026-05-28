@@ -184,7 +184,7 @@ Add the configuration to your `~/.continue/config.json` file:
 ```json
 {
   "experimental": {
-    "mcpServers": {
+    "servers": {
       "code-inspection-mcp": {
         "command": "node",
         "args": [
@@ -207,7 +207,7 @@ Here is a full breakdown of the tools exposed by the `code-inspection-mcp` serve
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-#### `token_squeezer.squeeze`
+#### `token_squeezer_squeeze`
 - **Description**: Squeezes code either from a raw string or read directly from disk.
 - **Inputs**:
   - `code` (string, optional): The raw code contents to squeeze.
@@ -222,7 +222,7 @@ Prunes non-structural elements (comments, import blocks, class private variables
     - `output_format` (enum: `'text'`, `'json'`, `'both'`, default `'both'`).
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run token_squeezer.squeeze '{"code": "import { x } from \"./x\";\n// Comment\nexport class A {\n  private key = 1;\n  public run() { console.log(this.key); }\n}", "language": "typescript"}'
+  code-inspection-mcp run token_squeezer_squeeze '{"code": "import { x } from \"./x\";\n// Comment\nexport class A {\n  private key = 1;\n  public run() { console.log(this.key); }\n}", "language": "typescript"}'
   ```
 - **Response Format**:
   ```json
@@ -244,14 +244,14 @@ Prunes non-structural elements (comments, import blocks, class private variables
 
 Validates layer dependencies and enforces separation of concerns (e.g., domain logic should not import infrastructure database clients).
 
-#### `architecture_shepherd.load_manifest`
+#### `architecture_shepherd_load_manifest`
 - **Description**: Parses an `ARCHITECTURE.md` file or string and registers layout constraints.
 - **Inputs**:
   - `path` (string, optional): Local file path to `ARCHITECTURE.md`.
   - `content` (string, optional): Raw manifest markdown text.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run architecture_shepherd.load_manifest '{"path": "ARCHITECTURE.md"}'
+  code-inspection-mcp run architecture_shepherd_load_manifest '{"path": "ARCHITECTURE.md"}'
   ```
 - **Response Format**:
   ```json
@@ -262,14 +262,14 @@ Validates layer dependencies and enforces separation of concerns (e.g., domain l
   }
   ```
 
-#### `architecture_shepherd.check`
+#### `architecture_shepherd_check`
 - **Description**: Audits list of files for architecture layer-crossings.
 - **Inputs**:
   - `paths` (string[]): Files/directories to check.
   - `manifest_id` (string): Registry identifier of a loaded manifest.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run architecture_shepherd.check '{"paths": ["packages/shared/src/index.ts"], "manifest_id": "default"}'
+  code-inspection-mcp run architecture_shepherd_check '{"paths": ["packages/shared/src/index.ts"], "manifest_id": "default"}'
   ```
 - **Response Format**:
   ```json
@@ -295,14 +295,14 @@ Validates layer dependencies and enforces separation of concerns (e.g., domain l
   }
   ```
 
-#### `architecture_shepherd.check_diff`
+#### `architecture_shepherd_check_diff`
 - **Description**: Validates only files modified in a git diff to verify PR safety.
 - **Inputs**:
   - `diff` (string): Raw output from `git diff`.
   - `manifest_id` (string): Registry identifier.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run architecture_shepherd.check_diff '{"diff": "diff --git a/src/core.ts b/src/core.ts ...", "manifest_id": "default"}'
+  code-inspection-mcp run architecture_shepherd_check_diff '{"diff": "diff --git a/src/core.ts b/src/core.ts ...", "manifest_id": "default"}'
   ```
 
 ---
@@ -311,14 +311,14 @@ Validates layer dependencies and enforces separation of concerns (e.g., domain l
 
 Finds code smells, structural clones, duplicate segments, and scans for unused code fragments.
 
-#### `pattern_miner.scan`
+#### `pattern_miner_scan`
 - **Description**: Scans paths for anti-patterns and rules.
 - **Inputs**:
   - `paths` (string[]): Paths to scan.
   - `patterns` (string[], optional): Filter for specific pattern IDs.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run pattern_miner.scan '{"paths": ["packages/cli/src"]}'
+  code-inspection-mcp run pattern_miner_scan '{"paths": ["packages/cli/src"]}'
   ```
 - **Response Format**:
   ```json
@@ -336,16 +336,16 @@ Finds code smells, structural clones, duplicate segments, and scans for unused c
   }
   ```
 
-#### `pattern_miner.find_dead_code`
+#### `pattern_miner_find_dead_code`
 - **Description**: Traces exports, imports, and variables to find unused code.
 - **Inputs**:
   - `paths` (string[]): Targets to analyze.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run pattern_miner.find_dead_code '{"paths": ["packages/shared/src"]}'
+  code-inspection-mcp run pattern_miner_find_dead_code '{"paths": ["packages/shared/src"]}'
   ```
 
-#### `pattern_miner.find_clones`
+#### `pattern_miner_find_clones`
 - **Description**: Matches code blocks for similar clones using Semgrep engine comparisons.
 - **Inputs**:
   - `fragment` (string): Reference code snippet.
@@ -359,16 +359,16 @@ Finds code smells, structural clones, duplicate segments, and scans for unused c
 
 Scans project files to construct an in-memory knowledge index mapping classes, interfaces, function calls, and import statements, supporting direct structural querying.
 
-#### `repograph.index`
+#### `repograph_index`
 - **Description**: Builds an index of a path directory.
 - **Inputs**:
   - `path` (string): Directory folder to index.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run repograph.index '{"path": "/absolute/path/to/project"}'
+  code-inspection-mcp run repograph_index '{"path": "/absolute/path/to/project"}'
   ```
 
-#### `repograph.query`
+#### `repograph_query`
 - **Description**: Query indexed symbols or structures.
 - **Inputs**:
   - `query` (string): Natural language or symbol name to query.
@@ -376,7 +376,7 @@ Scans project files to construct an in-memory knowledge index mapping classes, i
   - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run repograph.query '{"query": "find callers of runCli", "scope": "project"}'
+  code-inspection-mcp run repograph_query '{"query": "find callers of runCli", "scope": "project"}'
   ```
 - **Response Format**:
   ```json
@@ -397,13 +397,13 @@ Scans project files to construct an in-memory knowledge index mapping classes, i
 
 Examines task description prompts to calculate execution complexity and estimate pricing or route requests.
 
-#### `task_router.estimate`
+#### `task_router_estimate`
 - **Description**: Analyzes complexity metrics and requirements.
 - **Inputs**:
   - `task_description` (string): Task summary.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run task_router.estimate '{"task_description": "Fix typo in README"}'
+  code-inspection-mcp run task_router_estimate '{"task_description": "Fix typo in README"}'
   ```
 - **Response Format**:
   ```json
@@ -415,13 +415,13 @@ Examines task description prompts to calculate execution complexity and estimate
   }
   ```
 
-#### `task_router.decompose`
+#### `task_router_decompose`
 - **Description**: Breaks a task description down into sequential stages.
 - **Inputs**:
   - `task_description` (string): Full task specification.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run task_router.decompose '{"task_description": "Create a user registration endpoint with JWT"}'
+  code-inspection-mcp run task_router_decompose '{"task_description": "Create a user registration endpoint with JWT"}'
   ```
 - **Response Format**:
   ```json
@@ -443,14 +443,14 @@ Examines task description prompts to calculate execution complexity and estimate
 
 Validates codebase adherence to Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion guidelines.
 
-#### `solid_enforcer.audit`
+#### `solid_enforcer_audit`
 - **Description**: Checks target file code blocks against SOLID principles.
 - **Inputs**:
   - `code` (string): Raw source code lines.
   - `file_path` (string): File path descriptor.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run solid_enforcer.audit '{"code": "class DB { saveUser() {} sendMail() {} }", "file_path": "db.ts"}'
+  code-inspection-mcp run solid_enforcer_audit '{"code": "class DB { saveUser() {} sendMail() {} }", "file_path": "db.ts"}'
   ```
 - **Response Format**:
   ```json
@@ -476,7 +476,7 @@ Validates codebase adherence to Single Responsibility, Open-Closed, Liskov Subst
   }
   ```
 
-#### `solid_enforcer.generate_di_template`
+#### `solid_enforcer_generate_di_template`
 - **Description**: Creates dependency-injected class stubs for a list of interface dependencies.
 - **Inputs**:
   - `class_name` (string): Target class name.
@@ -484,7 +484,7 @@ Validates codebase adherence to Single Responsibility, Open-Closed, Liskov Subst
   - `language` (enum: `'typescript'`, `'javascript'`, default `'typescript'`).
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run solid_enforcer.generate_di_template '{"class_name": "ProductManager", "interfaces": ["Repository", "Notifier"]}'
+  code-inspection-mcp run solid_enforcer_generate_di_template '{"class_name": "ProductManager", "interfaces": ["Repository", "Notifier"]}'
   ```
 - **Response Format**: (Standard text output template)
   ```typescript

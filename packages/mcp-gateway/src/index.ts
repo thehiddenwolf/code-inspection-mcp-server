@@ -86,7 +86,7 @@ interface ToolDef extends McpToolDefinition {
 export const TOOLS: ToolDef[] = [
   // ── TokenSqueezer ──────────────────────────────────────────────────────────
   {
-    name: 'token_squeezer.squeeze',
+    name: 'token_squeezer_squeeze',
     description: 'Reduce code context via AST manipulation. Returns a structurally-squeezed skeleton.',
     version: '0.1.0',
     inputSchema: {
@@ -128,7 +128,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── ArchitectureShepherd ───────────────────────────────────────────────────
   {
-    name: 'architecture_shepherd.load_manifest',
+    name: 'architecture_shepherd_load_manifest',
     description: 'Load and parse an ARCHITECTURE.md manifest from a file path or raw content.',
     version: '0.1.0',
     inputSchema: {
@@ -140,7 +140,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'architecture_shepherd.check',
+    name: 'architecture_shepherd_check',
     description: 'Check file paths against an architecture manifest for layer boundary violations.',
     version: '0.1.0',
     inputSchema: {
@@ -157,7 +157,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'architecture_shepherd.check_diff',
+    name: 'architecture_shepherd_check_diff',
     description: 'Check a git diff against an architecture manifest for introduced violations.',
     version: '0.1.0',
     inputSchema: {
@@ -172,7 +172,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── RepoGraph ─────────────────────────────────────────────────────────────
   {
-    name: 'repograph.query',
+    name: 'repograph_query',
     description: 'Query the code knowledge graph for code relationships and structures.',
     version: '0.1.0',
     inputSchema: {
@@ -191,7 +191,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'repograph.index',
+    name: 'repograph_index',
     description: 'Index a codebase into the knowledge graph for querying.',
     version: '0.1.0',
     inputSchema: {
@@ -205,7 +205,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── PatternMiner ───────────────────────────────────────────────────────────
   {
-    name: 'pattern_miner.scan',
+    name: 'pattern_miner_scan',
     description: 'Scan code paths for known anti-patterns, code smells, and issues.',
     version: '0.1.0',
     inputSchema: {
@@ -226,7 +226,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'pattern_miner.find_dead_code',
+    name: 'pattern_miner_find_dead_code',
     description: 'Detect dead code — unused exports, unreachable branches, orphaned functions.',
     version: '0.1.0',
     inputSchema: {
@@ -242,7 +242,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'pattern_miner.get_pattern_catalog',
+    name: 'pattern_miner_get_pattern_catalog',
     description: 'Get the full catalog of built-in and custom patterns.',
     version: '0.1.0',
     inputSchema: {
@@ -251,7 +251,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'pattern_miner.learn_pattern',
+    name: 'pattern_miner_learn_pattern',
     description: 'Register a custom pattern definition for future scans.',
     version: '0.1.0',
     inputSchema: {
@@ -287,7 +287,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'pattern_miner.find_clones',
+    name: 'pattern_miner_find_clones',
     description: 'Find structural clones using Semgrep.',
     version: '0.1.0',
     inputSchema: {
@@ -309,7 +309,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── TaskRouter ─────────────────────────────────────────────────────────────
   {
-    name: 'task_router.estimate',
+    name: 'task_router_estimate',
     description: 'Estimate the complexity of a task and recommend a model and cost.',
     version: '0.1.0',
     inputSchema: {
@@ -321,7 +321,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'task_router.decompose',
+    name: 'task_router_decompose',
     description: 'Decompose a task into manageable subtasks with routing recommendations.',
     version: '0.1.0',
     inputSchema: {
@@ -335,7 +335,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── SOLIDEnforcer ──────────────────────────────────────────────────────────
   {
-    name: 'solid_enforcer.audit',
+    name: 'solid_enforcer_audit',
     description: 'Run SOLID principle checks on source code and return per-principle results.',
     version: '0.1.0',
     inputSchema: {
@@ -348,7 +348,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'solid_enforcer.generate_di_template',
+    name: 'solid_enforcer_generate_di_template',
     description: 'Generate a dependency injection template for a class.',
     version: '0.1.0',
     inputSchema: {
@@ -372,7 +372,7 @@ export const TOOLS: ToolDef[] = [
   },
   // ── LintFixer ──────────────────────────────────────────────────────────────
   {
-    name: 'lint_fixer.fix',
+    name: 'lint_fixer_fix',
     description: 'Auto-fix linting and formatting issues for a given file.',
     version: '0.1.0',
     inputSchema: {
@@ -415,7 +415,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
   switch (name) {
     // ── TokenSqueezer ──
-    case 'token_squeezer.squeeze': {
+    case 'token_squeezer_squeeze': {
       let code = args?.code ? String(args.code) : '';
       let lang = args?.language ? String(args.language) : '';
       const filePath = args?.filePath ? String(args.filePath) : '';
@@ -457,7 +457,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── ArchitectureShepherd ──
-    case 'architecture_shepherd.load_manifest': {
+    case 'architecture_shepherd_load_manifest': {
       const pathVal = args?.path ? String(args.path) : undefined;
       const content = args?.content ? String(args.content) : undefined;
       let manifest: Manifest;
@@ -473,7 +473,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify({ manifest_id: id, ...manifest }, null, 2);
       break;
     }
-    case 'architecture_shepherd.check': {
+    case 'architecture_shepherd_check': {
       const paths = (args?.paths as string[]) ?? [];
       const manifestId = String(args?.manifest_id ?? '');
       const manifest = manifestStore.get(manifestId);
@@ -482,7 +482,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify({ violations: checkResult.violations, passed: checkResult.violations.length === 0 }, null, 2);
       break;
     }
-    case 'architecture_shepherd.check_diff': {
+    case 'architecture_shepherd_check_diff': {
       const diff = String(args?.diff ?? '');
       const manifestId = String(args?.manifest_id ?? '');
       const manifest = manifestStore.get(manifestId);
@@ -493,7 +493,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── RepoGraph ──
-    case 'repograph.query': {
+    case 'repograph_query': {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
       const scope = (args?.scope as any) ?? 'project';
@@ -505,7 +505,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       }, null, 2);
       break;
     }
-    case 'repograph.index': {
+    case 'repograph_index': {
       const dirPath = String(args?.path ?? '');
       const project = indexer.indexDirectory(dirPath);
       const stats = indexer.applyProjectToGraph(graph, project);
@@ -521,7 +521,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── PatternMiner ──
-    case 'pattern_miner.scan': {
+    case 'pattern_miner_scan': {
       const paths = (args?.paths as string[]) ?? [];
       const patternFilter = args?.patterns as string[] | undefined;
       const scanReport = await runScan({
@@ -531,13 +531,13 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify(scanReport, null, 2);
       break;
     }
-    case 'pattern_miner.find_dead_code': {
+    case 'pattern_miner_find_dead_code': {
       const paths = (args?.paths as string[]) ?? [];
       const deadCodeReport = await findDeadCode({ directory: paths[0] });
       resultText = JSON.stringify(deadCodeReport, null, 2);
       break;
     }
-    case 'pattern_miner.find_clones': {
+    case 'pattern_miner_find_clones': {
       const fragment = String(args?.fragment ?? '');
       const language = String(args?.language ?? '');
       const searchPath = String(args?.searchPath ?? '');
@@ -553,11 +553,11 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify(clones, null, 2);
       break;
     }
-    case 'pattern_miner.get_pattern_catalog': {
+    case 'pattern_miner_get_pattern_catalog': {
       resultText = JSON.stringify(catalog, null, 2);
       break;
     }
-    case 'pattern_miner.learn_pattern': {
+    case 'pattern_miner_learn_pattern': {
       const definition = args?.definition as any;
       customPatterns.set(definition.id, definition);
       resultText = JSON.stringify({ status: 'learned', pattern_id: definition.id }, null, 2);
@@ -565,13 +565,13 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── TaskRouter ──
-    case 'task_router.estimate': {
+    case 'task_router_estimate': {
       const desc = String(args?.task_description ?? '');
       const est = estimateComplexity(desc);
       resultText = JSON.stringify(est, null, 2);
       break;
     }
-    case 'task_router.decompose': {
+    case 'task_router_decompose': {
       const desc = String(args?.task_description ?? '');
       const subtasks = extractSubtasks(desc);
       resultText = JSON.stringify({
@@ -583,7 +583,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── SOLIDEnforcer ──
-    case 'solid_enforcer.audit': {
+    case 'solid_enforcer_audit': {
       const code = String(args?.code ?? '');
       const filePath = String(args?.file_path ?? '');
       const violations: any[] = [];
@@ -599,7 +599,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       }, null, 2);
       break;
     }
-    case 'solid_enforcer.generate_di_template': {
+    case 'solid_enforcer_generate_di_template': {
       const className = String(args?.class_name ?? '');
       const interfaces = (args?.interfaces as string[]) ?? [];
       const language = (args?.language as 'typescript' | 'javascript') ?? 'typescript';
@@ -608,7 +608,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── LintFixer ──
-    case 'lint_fixer.fix': {
+    case 'lint_fixer_fix': {
       const filePath = String(args?.filePath ?? '');
       const dryRun = Boolean(args?.dryRun ?? false);
       if (!filePath) {

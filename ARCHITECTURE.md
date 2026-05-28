@@ -45,7 +45,7 @@ Parses source code into an AST, then strips non-essential nodes (whitespace, com
 
 **MCP tool signature:**
 ```
-token_squeezer.squeeze(code: string, language: string, options?: SqueezeOptions) -> SqueezedResult
+token_squeezer_squeeze(code: string, language: string, options?: SqueezeOptions) -> SqueezedResult
 ```
 
 **SqueezeOptions:**
@@ -77,13 +77,13 @@ Reads an `ARCHITECTURE.md` (or equivalent) file that defines project structure r
 
 **MCP tool signatures:**
 ```
-architecture_shepherd.load_manifest(path?: string) -> Manifest
+architecture_shepherd_load_manifest(path?: string) -> Manifest
   // Parses an ARCHITECTURE.md into a structured manifest of rules
 
-architecture_shepherd.check(paths: string[], manifest_id: string) -> Violation[]
+architecture_shepherd_check(paths: string[], manifest_id: string) -> Violation[]
   // Checks listed files against the loaded manifest
 
-architecture_shepherd.check_diff(diff: string, manifest_id: string) -> Violation[]
+architecture_shepherd_check_diff(diff: string, manifest_id: string) -> Violation[]
   // Checks a git diff against the manifest (for CI/PR review)
 
 architecture_shepherd.suggest_manifest(path: string) -> ManifestSuggestion
@@ -138,16 +138,16 @@ Code archaeology engine. Scans codebases for known anti-patterns, dead code, cod
 
 **MCP tool signatures:**
 ```
-pattern_miner.scan(paths: string[], patterns?: PatternFilter) -> ScanReport
+pattern_miner_scan(paths: string[], patterns?: PatternFilter) -> ScanReport
   // Scan specified files/directories for all known patterns
 
-pattern_miner.find_dead_code(paths: string[], options?: DeadCodeOptions) -> DeadCodeResult
+pattern_miner_find_dead_code(paths: string[], options?: DeadCodeOptions) -> DeadCodeResult
   // Targeted dead code detection (unused exports, unreachable branches, orphaned functions)
 
-pattern_miner.get_pattern_catalog() -> PatternCatalog
+pattern_miner_get_pattern_catalog() -> PatternCatalog
   // Return all patterns the miner knows about
 
-pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
+pattern_miner_learn_pattern(definition: PatternDefinition) -> PatternId
   // Register a custom anti-pattern (user-defined)
 ```
 
@@ -290,7 +290,7 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
   "agent_id": "assistant-xyz",
   "correlation_id": "uuid",
   "mcp_tool": {
-    "name": "token_squeezer.squeeze",
+    "name": "token_squeezer_squeeze",
     "server": "token-squeezer",
     "version": "0.1.0"
   },
@@ -313,7 +313,7 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
   "timestamp": "iso-8601",
   "correlation_id": "uuid",
   "mcp_result": {
-    "tool": "token_squeezer.squeeze",
+    "tool": "token_squeezer_squeeze",
     "status": "success|error|violation",
     "execution_ms": 342,
     "output_summary": {
@@ -331,7 +331,7 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
 {
   "event_id": "uuid",
   "correlation_id": "uuid",
-  "tool": "architecture_shepherd.check",
+  "tool": "architecture_shepherd_check",
   "violations": [
     {
       "type": "dependency_violation",
@@ -365,13 +365,13 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
 1. User asks AI assistant: "Can you optimize this file for context?"
 
 2. AI assistant calls MCP tool:
-   token_squeezer.squeeze({ code: "..." , language: "typescript" })
+   token_squeezer_squeeze({ code: "..." , language: "typescript" })
 
 3. mcp-gateway receives MCP request, translates to canonical event
    → publishes to queue
 
 4. orchestrator picks up event, asks policy-engine:
-   "Can assistant-xyz call token_squeezer.squeeze with 45KB input?"
+   "Can assistant-xyz call token_squeezer_squeeze with 45KB input?"
 
 5. policy-engine returns: allow (with rate limit: 100 calls/hour)
 
@@ -403,9 +403,9 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
 
 3. orchestrator creates CI check mission:
    a. Checkout code
-   b. Run architecture_shepherd.check_diff(diff, manifest)
-   c. Run pattern_miner.scan(changed_files)
-   d. Run token_squeezer.squeeze() on changed files (report potential savings)
+   b. Run architecture_shepherd_check_diff(diff, manifest)
+   c. Run pattern_miner_scan(changed_files)
+   d. Run token_squeezer_squeeze() on changed files (report potential savings)
 
 4. Results collected, summarized by llm-gateway (Tier C model)
 
@@ -420,8 +420,8 @@ pattern_miner.learn_pattern(definition: PatternDefinition) -> PatternId
 1. Admin triggers "full codebase audit" via REST API → api-gateway
 
 2. orchestrator creates batch mission with subtasks:
-   - Full pattern_miner.scan() across codebase
-   - architecture_shepherd.check() on all modules
+   - Full pattern_miner_scan() across codebase
+   - architecture_shepherd_check() on all modules
    - Dead code sweep
 
 3. Queue fans out work to parallel worker instances
@@ -729,7 +729,7 @@ hermes-mcp-toolset/
 4. Implement `imports` reducer (tree-shakable imports only)
 5. Implement `branches` reducer (dead branch elimination)
 6. Implement token counter
-7. Wire into MCP: `token_squeezer.squeeze()` works end-to-end
+7. Wire into MCP: `token_squeezer_squeeze()` works end-to-end
 
 **Exit criteria:**
 - JS/TS code squeezes 60%+ tokens on real-world files
@@ -743,7 +743,7 @@ hermes-mcp-toolset/
 3. Implement dependency rule checker
 4. Implement layer boundary checker
 5. Implement diff parser (git diff → structured changes)
-6. Wire into MCP: `architecture_shepherd.check()` and `.checkDiff()` work
+6. Wire into MCP: `architecture_shepherd_check()` and `.checkDiff()` work
 
 **Exit criteria:**
 - Can load a real ARCHITECTURE.md and catch layer violations
@@ -757,7 +757,7 @@ hermes-mcp-toolset/
 3. Implement JS/TS anti-patterns: `any` usage, magic numbers, nested callbacks
 4. Implement architecture smells: circular deps, god objects
 5. Implement report generator with severity scoring and suggestions
-6. Wire into MCP: `pattern_miner.scan()` and `.findDeadCode()` work
+6. Wire into MCP: `pattern_miner_scan()` and `.findDeadCode()` work
 
 **Exit criteria:**
 - Scans a real project and finds meaningful issues

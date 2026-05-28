@@ -29,7 +29,7 @@
 
 **Dependencies:** `@hermes/shared`, `web-tree-sitter`, per-language WASM grammar packages
 
-**MCP tools provided:** `token_squeezer.squeeze`
+**MCP tools provided:** `token_squeezer_squeeze`
 
 **Why this is Phase 1:** Highest ROI of any tool. The ecosystem has independently validated the approach (mcp-code-context, Repomix, code-review-graph, Aider, Claude Code itself — all use Tree-sitter body-stripping). A single call saves 60-90% of file token cost with zero LLM overhead. The SWE-Pruner paper (arxiv:2601.16746) explicitly validates that structural preservation is *more* important under tighter compression budgets.
 

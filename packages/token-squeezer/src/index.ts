@@ -32,7 +32,7 @@ const server = new McpServer(
 );
 
 // Register the squeeze tool
-server.registerTool('token_squeezer.squeeze', {
+server.registerTool('token_squeezer_squeeze', {
   description: 'Reduce source code token count by returning structural skeletons via Tree-sitter AST manipulation (or regex fallback)',
   inputSchema: SqueezeInput,
   outputSchema: SqueezeOutput,

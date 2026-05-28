@@ -43,10 +43,10 @@ describe('code-inspection-mcp CLI', () => {
     expect(tools[0]).toHaveProperty('inputSchema');
   });
 
-  it('should include token_squeezer.squeeze in list', () => {
+  it('should include token_squeezer_squeeze in list', () => {
     const { stdout } = runCli('list');
     const tools = JSON.parse(stdout);
-    const squeeze = tools.find((t: { name: string }) => t.name === 'token_squeezer.squeeze');
+    const squeeze = tools.find((t: { name: string }) => t.name === 'token_squeezer_squeeze');
     expect(squeeze).toBeDefined();
     expect(squeeze.description).toContain('Reduce code context');
   });
@@ -70,12 +70,12 @@ describe('code-inspection-mcp CLI', () => {
   });
 
   it('should run a tool and return its output', () => {
-    const { stdout } = runCli('run token_squeezer.squeeze \'{"code":"const x = 1;","language":"typescript"}\'');
+    const { stdout } = runCli('run token_squeezer_squeeze \'{"code":"const x = 1;","language":"typescript"}\'');
     expect(stdout).toContain('const x = 1;');
   });
 
   it('should run a tool with JSON output format options', () => {
-    const { stdout } = runCli('run token_squeezer.squeeze \'{"code":"const x = 1;","language":"typescript","options":{"output_format":"json"}}\'');
+    const { stdout } = runCli('run token_squeezer_squeeze \'{"code":"const x = 1;","language":"typescript","options":{"output_format":"json"}}\'');
     expect(() => JSON.parse(stdout)).not.toThrow();
     const result = JSON.parse(stdout);
     expect(result.original).toBe('const x = 1;');
@@ -83,12 +83,12 @@ describe('code-inspection-mcp CLI', () => {
   });
 
   it('should return error for unknown tool', () => {
-    const { stdout, stderr } = runCli('run nonexistent.tool');
+    const { stdout, stderr } = runCli('run nonexistent_tool');
     expect(stderr).toContain('Unknown tool');
   });
 
   it('should handle error for invalid JSON args', () => {
-    const { stdout, stderr } = runCli('run token_squeezer.squeeze not-json');
+    const { stdout, stderr } = runCli('run token_squeezer_squeeze not-json');
     expect(stderr).toContain('Invalid JSON arguments');
   });
 });

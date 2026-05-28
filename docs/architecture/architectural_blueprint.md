@@ -190,7 +190,7 @@ The gateway maintains a `TOOLS` array containing definitions for all tools. Each
 
 ```typescript
 {
-  name: string;        // e.g. "token_squeezer.squeeze"
+  name: string;        // e.g. "token_squeezer_squeeze"
   description: string;
   inputSchema: object; // Zod-derived JSON Schema
 }
@@ -213,26 +213,26 @@ The gateway maintains in-memory state across the lifetime of the connection:
 ### 3.5 Registered Tools (Complete Inventory)
 
 ```
-token_squeezer.squeeze
-architecture_shepherd.load_manifest
-architecture_shepherd.check
-architecture_shepherd.check_diff
+token_squeezer_squeeze
+architecture_shepherd_load_manifest
+architecture_shepherd_check
+architecture_shepherd_check_diff
 architecture_shepherd.suggest_manifest
-repograph.query
+repograph_query
 repograph.register_intent
 repograph.rescan
 repograph.update
-pattern_miner.scan
-pattern_miner.find_dead_code
-pattern_miner.find_clones
-pattern_miner.get_pattern_catalog
-pattern_miner.learn_pattern
-task_router.estimate
-task_router.decompose
+pattern_miner_scan
+pattern_miner_find_dead_code
+pattern_miner_find_clones
+pattern_miner_get_pattern_catalog
+pattern_miner_learn_pattern
+task_router_estimate
+task_router_decompose
 task_router.analyze
-task_router.estimate_effort
-solid_enforcer.audit
-solid_enforcer.generate_di_template
+task_router_estimate_effort
+solid_enforcer_audit
+solid_enforcer_generate_di_template
 solid_enforcer.scope_context
 solid_enforcer.check
 solid_enforcer.check_single
@@ -307,9 +307,9 @@ Input Code
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `architecture_shepherd.load_manifest` | `{ path?: string, content?: string }` | `{ manifest_id, summary }` |
-| `architecture_shepherd.check` | `{ paths: string[], manifest_id: string }` | `{ passed, violations[] }` |
-| `architecture_shepherd.check_diff` | `{ diff: string, manifest_id: string }` | `{ passed, violations[] }` |
+| `architecture_shepherd_load_manifest` | `{ path?: string, content?: string }` | `{ manifest_id, summary }` |
+| `architecture_shepherd_check` | `{ paths: string[], manifest_id: string }` | `{ passed, violations[] }` |
+| `architecture_shepherd_check_diff` | `{ diff: string, manifest_id: string }` | `{ passed, violations[] }` |
 | `architecture_shepherd.suggest_manifest` | `{ path: string }` | `{ suggested_manifest, confidence }` |
 
 **Manifest Format (parsed from ARCHITECTURE.md):**
@@ -352,7 +352,7 @@ Input Code
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `repograph.query` | `{ query_type, file_path?, entity_name?, ... }` | `{ results, graph_summary }` |
+| `repograph_query` | `{ query_type, file_path?, entity_name?, ... }` | `{ results, graph_summary }` |
 | `repograph.update` | `{ changes, full_rescan? }` | `{ entities_added, edges_added }` |
 | `repograph.register_intent` | `{ intent, file_paths[], confidence? }` | `{ success, intent_id }` |
 | `repograph.rescan` | `{ codebase_path?, include_patterns? }` | `{ entities_count, relationships_count }` |
@@ -407,11 +407,11 @@ CREATE TABLE relationships (
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `pattern_miner.scan` | `{ paths, patterns? }` | `{ scan_id, findings[], summary }` |
-| `pattern_miner.find_dead_code` | `{ paths, options? }` | `{ dead_functions[], unused_exports[] }` |
-| `pattern_miner.find_clones` | `{ fragment, language, searchPath, minConfidence? }` | `{ clones[] }` |
-| `pattern_miner.get_pattern_catalog` | `{}` | `{ patterns[] }` |
-| `pattern_miner.learn_pattern` | `{ definition }` | `{ pattern_id }` |
+| `pattern_miner_scan` | `{ paths, patterns? }` | `{ scan_id, findings[], summary }` |
+| `pattern_miner_find_dead_code` | `{ paths, options? }` | `{ dead_functions[], unused_exports[] }` |
+| `pattern_miner_find_clones` | `{ fragment, language, searchPath, minConfidence? }` | `{ clones[] }` |
+| `pattern_miner_get_pattern_catalog` | `{}` | `{ patterns[] }` |
+| `pattern_miner_learn_pattern` | `{ definition }` | `{ pattern_id }` |
 
 **Pattern Catalog (Built-in):**
 
@@ -426,7 +426,7 @@ CREATE TABLE relationships (
 **Clone Detection Engine:**
 
 ```typescript
-pattern_miner.find_clones({
+pattern_miner_find_clones({
   fragment: "source code snippet",
   language: "typescript",
   searchPath: "./packages",
@@ -457,10 +457,10 @@ Supports three detection modes:
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `task_router.estimate` | `{ task_description }` | `{ complexity_score, metrics[], recommended_tier }` |
-| `task_router.decompose` | `{ task_description, ... }` | `{ subtasks[], execution_plan }` |
+| `task_router_estimate` | `{ task_description }` | `{ complexity_score, metrics[], recommended_tier }` |
+| `task_router_decompose` | `{ task_description, ... }` | `{ subtasks[], execution_plan }` |
 | `task_router.analyze` | `{ analysis_target, custom_thresholds? }` | `{ complexity_score, metrics[], recommended_tier, reasoning }` |
-| `task_router.estimate_effort` | `{ file_path, change_description }` | `{ estimated_tokens, cost_range }` |
+| `task_router_estimate_effort` | `{ file_path, change_description }` | `{ estimated_tokens, cost_range }` |
 
 **Complexity Metrics:**
 
@@ -501,8 +501,8 @@ Supports three detection modes:
 |------|-------|--------|
 | `solid_enforcer.check` | `{ file, code }` | `{ passed, violations[], results[] }` |
 | `solid_enforcer.check_single` | `{ file, code, principle }` | `{ principle, passed, violations[], score }` |
-| `solid_enforcer.audit` | `{ code, language, checks?, ... }` | `{ overall_pass, checks[], summary }` |
-| `solid_enforcer.generate_di_template` | `{ class_name, interfaces[], language }` | `{ template_code, interface_code }` |
+| `solid_enforcer_audit` | `{ code, language, checks?, ... }` | `{ overall_pass, checks[], summary }` |
+| `solid_enforcer_generate_di_template` | `{ class_name, interfaces[], language }` | `{ template_code, interface_code }` |
 | `solid_enforcer.scope_context` | `{ task_file, context_window? }` | `{ allowed_files, blocked_files }` |
 | `solid_enforcer.translate_prompt` | `{ abstract_directive, context }` | `{ translated_directives[] }` |
 
@@ -1054,7 +1054,7 @@ npx tsx packages/cli/src/index.ts start
 npx tsx packages/cli/src/index.ts list
 
 # Run single tool
-npx tsx packages/cli/src/index.ts run token_squeezer.squeeze '{"code":"...","language":"typescript"}'
+npx tsx packages/cli/src/index.ts run token_squeezer_squeeze '{"code":"...","language":"typescript"}'
 
 # Full CI pipeline
 npm run ci
