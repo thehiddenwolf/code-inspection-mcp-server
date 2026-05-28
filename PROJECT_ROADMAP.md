@@ -303,6 +303,20 @@ These can be developed independently after Phase 1.
 
 ---
 
+## Future Tools & Enhancements
+
+### 1. Cross-File Reference Tracking & Documentation Mapper
+* **Purpose**: Tracks references and cross-usages of methods, classes, interfaces, and properties across files and markdown documentation.
+* **MCP Tool Proposed**: `insight_reference_tracker` or a generic `get_insights` tool.
+* **`get_insights` Wrapper**: Combines multiple tool calls (definitions, usages, references, documentation blocks) into a single payload to minimize back-and-forth LLM roundtrips and token usage.
+
+### 2. Batch Refactoring Engine
+* **Purpose**: Atomically executes complex, multi-file refactoring operations (e.g., renaming variables, breaking functions out, moving files, updating all downstream references) in a defined transactional sequence.
+* **MCP Tool Proposed**: `refactor_execute_batch`.
+* **Key Capability**: Accepts an ordered array of refactoring descriptors and applies them sequentially on the codebase in a single tool invocation to conserve context window and LLM calls.
+
+---
+
 ## Open Questions
 
 ### Technical
