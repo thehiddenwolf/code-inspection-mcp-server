@@ -162,9 +162,9 @@ interface ToolDef extends McpToolDefinition {
 }
 
 const TOOLS: ToolDef[] = [
-  // ── repograph.query ───────────────────────────────────────────────────────
+  // ── repograph_query ───────────────────────────────────────────────────────
   {
-    name: 'repograph.query',
+    name: 'repograph_query',
     description: 'Query the codebase knowledge graph. Searches nodes by name/label and returns the connected subgraph via BFS traversal.',
     inputSchema: {
       type: 'object',
@@ -223,9 +223,9 @@ const TOOLS: ToolDef[] = [
     },
   },
 
-  // ── repograph.index_file ──────────────────────────────────────────────────
+  // ── repograph_index_file ──────────────────────────────────────────────────
   {
-    name: 'repograph.index_file',
+    name: 'repograph_index_file',
     description: 'Index a single source file into the knowledge graph. Extracts imports, exports, classes, functions, interfaces, and type declarations.',
     inputSchema: {
       type: 'object',
@@ -336,9 +336,9 @@ const TOOLS: ToolDef[] = [
     },
   },
 
-  // ── repograph.index_project ───────────────────────────────────────────────
+  // ── repograph_index_project ───────────────────────────────────────────────
   {
-    name: 'repograph.index_project',
+    name: 'repograph_index_project',
     description: 'Index an entire project directory into the knowledge graph. Scans .ts, .tsx, .js, .jsx, .mjs, .cjs files.',
     inputSchema: {
       type: 'object',
@@ -429,9 +429,9 @@ const TOOLS: ToolDef[] = [
     },
   },
 
-  // ── repograph.find_references ─────────────────────────────────────────────
+  // ── repograph_find_references ─────────────────────────────────────────────
   {
-    name: 'repograph.find_references',
+    name: 'repograph_find_references',
     description: 'Find all references to a symbol in the knowledge graph. Returns incoming import/call edges pointing to matching symbols.',
     inputSchema: {
       type: 'object',
@@ -489,9 +489,9 @@ const TOOLS: ToolDef[] = [
     },
   },
 
-  // ── repograph.find_definitions ────────────────────────────────────────────
+  // ── repograph_find_definitions ────────────────────────────────────────────
   {
-    name: 'repograph.find_definitions',
+    name: 'repograph_find_definitions',
     description: 'Find the definition of a symbol in the knowledge graph. Searches for declaration-type nodes (class, function, interface, type, variable) matching the name.',
     inputSchema: {
       type: 'object',
