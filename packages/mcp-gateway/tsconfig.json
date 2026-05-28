@@ -11,7 +11,8 @@
       "@hermes/pattern-miner/*": ["../pattern-miner/dist/*"],
       "@hermes/repograph/*": ["../repograph/dist/*"],
       "@hermes/task-router/*": ["../task-router/dist/*"],
-      "@hermes/solid-enforcer/*": ["../solid-enforcer/dist/*"]
+      "@hermes/solid-enforcer/*": ["../solid-enforcer/dist/*"],
+      "@hermes/lint-fixer/*": ["../lint-fixer/dist/*"]
     }
   },
   "include": ["src/**/*"],
@@ -22,6 +23,7 @@
     { "path": "../pattern-miner" },
     { "path": "../repograph" },
     { "path": "../task-router" },
-    { "path": "../solid-enforcer" }
+    { "path": "../solid-enforcer" },
+    { "path": "../lint-fixer" }
   ]
 }

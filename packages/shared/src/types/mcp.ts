@@ -80,4 +80,5 @@ export const TOOL_NAMESPACES = {
   REPOGRAPH: 'repograph',
   TASK_ROUTER: 'task_router',
   SOLID_ENFORCER: 'solid_enforcer',
+  LINT_FIXER: 'lint_fixer',
 } as const;

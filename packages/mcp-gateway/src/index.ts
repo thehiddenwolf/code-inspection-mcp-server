@@ -43,6 +43,7 @@ import { checkOpenClosed } from '@hermes/solid-enforcer/rules/open-closed.js';
 import { checkLiskovSubstitution } from '@hermes/solid-enforcer/rules/liskov.js';
 import { checkInterfaceSegregation } from '@hermes/solid-enforcer/rules/interface-segregation.js';
 import { checkDependencyInversion } from '@hermes/solid-enforcer/rules/dependency-inversion.js';
+import { fixFile } from '@hermes/lint-fixer/fixer.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Logger
@@ -369,6 +370,20 @@ export const TOOLS: ToolDef[] = [
       required: ['class_name', 'interfaces'],
     },
   },
+  // ── LintFixer ──────────────────────────────────────────────────────────────
+  {
+    name: 'lint_fixer.fix',
+    description: 'Auto-fix linting and formatting issues for a given file.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: 'Absolute path to the file to lint/fix' },
+        dryRun: { type: 'boolean', default: false, description: 'If true, only returns the diff and does not modify the file on disk' }
+      },
+      required: ['filePath']
+    }
+  }
 ];
 
 // Helper for SOLID DI Template Generator
@@ -589,6 +604,18 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const interfaces = (args?.interfaces as string[]) ?? [];
       const language = (args?.language as 'typescript' | 'javascript') ?? 'typescript';
       resultText = generateDiTemplate(className, interfaces, language);
+      break;
+    }
+
+    // ── LintFixer ──
+    case 'lint_fixer.fix': {
+      const filePath = String(args?.filePath ?? '');
+      const dryRun = Boolean(args?.dryRun ?? false);
+      if (!filePath) {
+        throw new Error("Parameter 'filePath' is required.");
+      }
+      const fixResult = await fixFile(filePath, dryRun);
+      resultText = JSON.stringify(fixResult, null, 2);
       break;
     }
 

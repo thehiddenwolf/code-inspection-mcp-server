@@ -17,6 +17,7 @@
     "@hermes/repograph": "*",
     "@hermes/task-router": "*",
     "@hermes/solid-enforcer": "*",
+    "@hermes/lint-fixer": "*",
     "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {

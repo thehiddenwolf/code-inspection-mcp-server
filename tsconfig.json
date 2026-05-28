@@ -25,6 +25,7 @@
     { "path": "./packages/pattern-miner" },
     { "path": "./packages/task-router" },
     { "path": "./packages/solid-enforcer" },
+    { "path": "./packages/lint-fixer" },
     { "path": "./packages/cli" }
   ],
   "files": []
