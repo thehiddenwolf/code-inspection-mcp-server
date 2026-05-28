@@ -129,6 +129,166 @@ describe('FileIndexer', () => {
         expect(edge.to).toMatch(/^sym:/);
       }
     });
+
+    describe('C# Support', () => {
+      it('extracts imports (usings) from C# code', () => {
+        const content = `
+          using System;
+          using System.Collections.Generic;
+          using static System.Math;
+          using Alias = System.IO;
+        `;
+        const result = indexer.indexFile('/test/Program.cs', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        const sources = importEdges.map((e) => e.to);
+
+        expect(sources).toContain('file:System');
+        expect(sources).toContain('file:System.Collections.Generic');
+        expect(sources).toContain('file:System.Math');
+        expect(sources).toContain('file:System.IO');
+      });
+
+      it('extracts declarations from C# code', () => {
+        const content = `
+          namespace MyNamespace;
+          public class MyClass : IInterface
+          {
+              public async Task<int> CalculateAsync(int x, string y)
+              {
+                  return 0;
+              }
+          }
+          public interface IInterface {}
+          public struct MyStruct {}
+          public record MyRecord {}
+          public enum MyEnum {}
+        `;
+        const result = indexer.indexFile('/test/Program.cs', content);
+        
+        const classSym = result.symbols.find((s) => s.name === 'MyClass');
+        expect(classSym).toBeDefined();
+        expect(classSym!.type).toBe('class');
+
+        const methodSym = result.symbols.find((s) => s.name === 'CalculateAsync');
+        expect(methodSym).toBeDefined();
+        expect(methodSym!.type).toBe('function');
+
+        const interfaceSym = result.symbols.find((s) => s.name === 'IInterface');
+        expect(interfaceSym).toBeDefined();
+        expect(interfaceSym!.type).toBe('interface');
+
+        const structSym = result.symbols.find((s) => s.name === 'MyStruct');
+        expect(structSym).toBeDefined();
+        expect(structSym!.type).toBe('class');
+
+        const recordSym = result.symbols.find((s) => s.name === 'MyRecord');
+        expect(recordSym).toBeDefined();
+        expect(recordSym!.type).toBe('class');
+
+        const enumSym = result.symbols.find((s) => s.name === 'MyEnum');
+        expect(enumSym).toBeDefined();
+        expect(enumSym!.type).toBe('class');
+      });
+
+      it('extracts extends and implements relationships from C# inheritance', () => {
+        const content = `
+          class Derived : BaseClass, ISomeInterface, IAnotherInterface {}
+          class BaseClass {}
+          interface ISomeInterface {}
+          interface IAnotherInterface {}
+        `;
+        const result = indexer.indexFile('/test/Program.cs', content);
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:Derived@/test/Program.cs' && e.to === 'sym:BaseClass')).toBe(true);
+
+        const implementsEdges = result.edges.filter((e) => e.type === 'implements');
+        expect(implementsEdges.some((e) => e.from === 'sym:Derived@/test/Program.cs' && e.to === 'sym:ISomeInterface')).toBe(true);
+        expect(implementsEdges.some((e) => e.from === 'sym:Derived@/test/Program.cs' && e.to === 'sym:IAnotherInterface')).toBe(true);
+      });
+    });
+
+    describe('VB.net Support', () => {
+      it('extracts imports from VB.net code', () => {
+        const content = `
+          Imports System
+          Imports System.IO
+          Imports AliasName = System.Collections.Generic
+        `;
+        const result = indexer.indexFile('/test/Program.vb', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        const sources = importEdges.map((e) => e.to);
+
+        expect(sources).toContain('file:System');
+        expect(sources).toContain('file:System.IO');
+        expect(sources).toContain('file:System.Collections.Generic');
+      });
+
+      it('extracts declarations from VB.net code', () => {
+        const content = `
+          Public Class MyClass
+              Public Sub DoSomething()
+              End Sub
+          End Class
+          Public Interface IInterface
+          End Interface
+          Public Structure MyStruct
+          End Structure
+          Public Module MyModule
+          End Module
+          Public Enum MyEnum
+          End Enum
+        `;
+        const result = indexer.indexFile('/test/Program.vb', content);
+
+        const classSym = result.symbols.find((s) => s.name === 'MyClass');
+        expect(classSym).toBeDefined();
+        expect(classSym!.type).toBe('class');
+
+        const methodSym = result.symbols.find((s) => s.name === 'DoSomething');
+        expect(methodSym).toBeDefined();
+        expect(methodSym!.type).toBe('function');
+
+        const interfaceSym = result.symbols.find((s) => s.name === 'IInterface');
+        expect(interfaceSym).toBeDefined();
+        expect(interfaceSym!.type).toBe('interface');
+
+        const structSym = result.symbols.find((s) => s.name === 'MyStruct');
+        expect(structSym).toBeDefined();
+        expect(structSym!.type).toBe('class');
+
+        const moduleSym = result.symbols.find((s) => s.name === 'MyModule');
+        expect(moduleSym).toBeDefined();
+        expect(moduleSym!.type).toBe('class');
+
+        const enumSym = result.symbols.find((s) => s.name === 'MyEnum');
+        expect(enumSym).toBeDefined();
+        expect(enumSym!.type).toBe('class');
+      });
+
+      it('extracts extends and implements relationships from VB.net inheritance', () => {
+        const content = `
+          Public Class DerivedClass
+              Inherits BaseClass
+              Implements ISomeInterface, IAnotherInterface
+          End Class
+          Public Class BaseClass
+          End Class
+          Public Interface ISomeInterface
+          End Interface
+          Public Interface IAnotherInterface
+          End Interface
+        `;
+        const result = indexer.indexFile('/test/Program.vb', content);
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:DerivedClass@/test/Program.vb' && e.to === 'sym:BaseClass')).toBe(true);
+
+        const implementsEdges = result.edges.filter((e) => e.type === 'implements');
+        expect(implementsEdges.some((e) => e.from === 'sym:DerivedClass@/test/Program.vb' && e.to === 'sym:ISomeInterface')).toBe(true);
+        expect(implementsEdges.some((e) => e.from === 'sym:DerivedClass@/test/Program.vb' && e.to === 'sym:IAnotherInterface')).toBe(true);
+      });
+    });
   });
 
   // ── indexDirectory ──────────────────────────────────────────────────────
