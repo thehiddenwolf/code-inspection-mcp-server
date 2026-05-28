@@ -94,6 +94,8 @@ def _on_transform_tool_result(
         ".go": "go",
         ".jsx": "jsx",
         ".tsx": "tsx",
+        ".cs": "csharp",
+        ".vb": "vbnet",
     }
     lang = ext_to_lang.get(ext)
     if not lang:

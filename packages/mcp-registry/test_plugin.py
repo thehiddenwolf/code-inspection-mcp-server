@@ -148,6 +148,35 @@ class TestMcpRegistryPlugin(unittest.TestCase):
         self.assertEqual(agent.model, "deepseek-v4-pro")
         self.assertNotIn("session-123", _original_models)
 
+    @patch("tools.registry.registry.get_entry")
+    @patch("tools.registry.registry.dispatch")
+    def test_transform_tool_result_squeezes_csharp_and_vbnet(self, mock_dispatch, mock_get_entry):
+        mock_get_entry.return_value = True
+        mock_dispatch.return_value = json.dumps({"result": "squeezed structural skeleton"})
+
+        large_content = "class MyClass {\n" + "\n".join(f"  void Method{i}() {{}}" for i in range(100)) + "\n}"
+        input_result = json.dumps({"content": large_content})
+
+        # Test C#
+        res_cs = _on_transform_tool_result(
+            tool_name="read_file",
+            args={"path": "src/Program.cs"},
+            result=input_result
+        )
+        self.assertIsNotNone(res_cs)
+        self.assertEqual(mock_dispatch.call_args[0][1]["language"], "csharp")
+
+        # Test VB.Net
+        mock_dispatch.reset_mock()
+        res_vb = _on_transform_tool_result(
+            tool_name="read_file",
+            args={"path": "src/Main.vb"},
+            result=input_result
+        )
+        self.assertIsNotNone(res_vb)
+        self.assertEqual(mock_dispatch.call_args[0][1]["language"], "vbnet")
+
 
 if __name__ == "__main__":
     unittest.main()
+

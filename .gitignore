@@ -5,4 +5,9 @@ coverage/
 .env
 .hermes/
 *.tsbuildinfo
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
 
