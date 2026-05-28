@@ -14,7 +14,6 @@ export const PatternCategory = z.enum([
   'style',
   'complexity',
   'duplication',
-  'dead_code',
   'architecture',
   'best_practice',
 ]);

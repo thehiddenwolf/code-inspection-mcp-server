@@ -97,8 +97,8 @@ export async function detectMagicNumbers(
           line: lineIdx + 1,
           column: match.index,
           message: `Magic number '${numStr}' detected — assign to a named constant`,
-          severity: 'info' as PatternSeverityType,
-          category: 'style' as PatternCategoryType,
+          severity: 'info',
+          category: 'style',
           snippet: context,
         });
       }

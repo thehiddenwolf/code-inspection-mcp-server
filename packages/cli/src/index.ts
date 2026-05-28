@@ -11,7 +11,7 @@
  */
 
 import { Command } from 'commander';
-import { createServer, TOOLS, executeTool } from '@hermes/mcp-gateway';
+import { createServer, TOOLS, executeTool, initializeGateway } from '@hermes/mcp-gateway';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { scanCommand } from './commands/scan.js';
 import { analyzeCommand } from './commands/analyze.js';
@@ -48,7 +48,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startGateway(options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startGateway(options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:gateway ──────────────────────────────────────────────────────────
@@ -58,7 +59,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startGateway(options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startGateway(options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:ts (TokenSqueezer) ──────────────────────────────────────────────
@@ -68,7 +70,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('token_squeezer', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('token_squeezer', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:arch (ArchitectureShepherd) ──────────────────────────────────────
@@ -78,7 +81,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('architecture_shepherd', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('architecture_shepherd', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:rg (RepoGraph) ──────────────────────────────────────────────────
@@ -88,7 +92,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('repograph', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('repograph', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:pm (PatternMiner) ───────────────────────────────────────────────
@@ -98,7 +103,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('pattern_miner', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('pattern_miner', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:se (SOLIDEnforcer) ──────────────────────────────────────────────
@@ -108,7 +114,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('solid_enforcer', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('solid_enforcer', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── start:tr (TaskRouter) ─────────────────────────────────────────────────
@@ -118,7 +125,8 @@ program
   .option('--transport <type>', 'Transport type: stdio or sse', 'stdio')
   .option('--port <number>', 'Port for SSE transport', '3000')
   .action(async (options: { transport: string; port: string }) => {
-    await startFilteredServer('task_router', options.transport, parseInt(options.port, 10));
+    const globalOpts = program.opts();
+    await startFilteredServer('task_router', options.transport, parseInt(options.port, 10), globalOpts.config);
   });
 
 // ── run ────────────────────────────────────────────────────────────────────
@@ -128,7 +136,8 @@ program
   .argument('<tool>', 'Tool name (e.g. token_squeezer_squeeze)')
   .argument('[args]', 'JSON string of tool arguments')
   .action(async (tool: string, argsJson: string | undefined) => {
-    await runTool(tool, argsJson);
+    const globalOpts = program.opts();
+    await runTool(tool, argsJson, globalOpts.config);
   });
 
 // ── list ───────────────────────────────────────────────────────────────────
@@ -136,6 +145,8 @@ program
   .command('list')
   .description('List all available MCP tools with their schemas')
   .action(async () => {
+    const globalOpts = program.opts();
+    await initializeGateway(globalOpts.config);
     const toolsInfo = TOOLS.map(({ name, description, inputSchema }) => ({
       name,
       description,
@@ -227,12 +238,13 @@ program
 /**
  * Start the combined MCP gateway with all tools registered.
  */
-async function startGateway(transportType: string, port: number): Promise<void> {
+async function startGateway(transportType: string, port: number, configPath?: string): Promise<void> {
   if (transportType === 'sse') {
     console.error('SSE transport requires additional setup. Launching with stdio instead.');
     console.error('For SSE, use: code-inspection-mcp start:gateway --transport sse --port 3000');
   }
 
+  await initializeGateway(configPath);
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -245,7 +257,8 @@ async function startGateway(transportType: string, port: number): Promise<void> 
  * Uses the same gateway infrastructure but only registers tools
  * matching the given namespace prefix.
  */
-async function startFilteredServer(namespace: string, transportType: string, port: number): Promise<void> {
+async function startFilteredServer(namespace: string, transportType: string, port: number, configPath?: string): Promise<void> {
+  await initializeGateway(configPath);
   const filteredTools = TOOLS.filter((t) => t.name.startsWith(namespace));
 
   if (filteredTools.length === 0) {
@@ -310,7 +323,8 @@ async function startFilteredServer(namespace: string, transportType: string, por
 /**
  * Run a single MCP tool and output the result to stdout.
  */
-async function runTool(toolName: string, argsJson: string | undefined): Promise<void> {
+async function runTool(toolName: string, argsJson: string | undefined, configPath?: string): Promise<void> {
+  await initializeGateway(configPath);
   const toolDef = TOOLS.find((t) => t.name === toolName);
   if (!toolDef) {
     console.error(`Unknown tool: ${toolName}`);

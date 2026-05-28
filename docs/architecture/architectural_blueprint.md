@@ -223,7 +223,6 @@ repograph.register_intent
 repograph.rescan
 repograph.update
 pattern_miner_scan
-pattern_miner_find_dead_code
 pattern_miner_find_clones
 pattern_miner_get_pattern_catalog
 pattern_miner_learn_pattern
@@ -401,14 +400,13 @@ CREATE TABLE relationships (
 
 ### 4.4 PatternMiner (`@hermes/pattern-miner`)
 
-**Purpose:** Code archaeology engine — detects structural duplicates, anti-patterns, dead code, and security smells.
+**Purpose:** Code archaeology engine — detects structural duplicates, anti-patterns, and security smells.
 
 **MCP Tools:**
 
 | Tool | Input | Output |
 |------|-------|--------|
 | `pattern_miner_scan` | `{ paths, patterns? }` | `{ scan_id, findings[], summary }` |
-| `pattern_miner_find_dead_code` | `{ paths, options? }` | `{ dead_functions[], unused_exports[] }` |
 | `pattern_miner_find_clones` | `{ fragment, language, searchPath, minConfidence? }` | `{ clones[] }` |
 | `pattern_miner_get_pattern_catalog` | `{}` | `{ patterns[] }` |
 | `pattern_miner_learn_pattern` | `{ definition }` | `{ pattern_id }` |
@@ -417,7 +415,6 @@ CREATE TABLE relationships (
 
 | Category | Patterns |
 |----------|----------|
-| **Dead Code** | Unused exports, unreachable branches, orphaned functions |
 | **JS/TS Anti-patterns** | `any` usage, magic numbers, nested callbacks |
 | **Python Anti-patterns** | Bare `except:`, mutable default args, global mutation |
 | **Architecture Smells** | Circular dependencies, god objects, leaky abstractions |

@@ -100,7 +100,7 @@ export class FileIndexer {
       symbols.push(decl);
       nodes.push({
         id: symId,
-        type: decl.type as GraphNodeType,
+        type: decl.type,
         label: decl.name,
         filePath,
         metadata: { exported: decl.exported, line: decl.line, column: decl.column },

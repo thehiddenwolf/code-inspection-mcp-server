@@ -63,8 +63,8 @@ export async function detectBareExcept(
         line: lineNum + 1,
         column: lineText.search(/except/),
         message: `Bare 'except:' catches all exceptions, including SystemExit and KeyboardInterrupt — specify exception type(s)`,
-        severity: 'error' as PatternSeverityType,
-        category: 'best_practice' as PatternCategoryType,
+        severity: 'error',
+        category: 'best_practice',
         snippet: lineText.trim(),
       });
     }

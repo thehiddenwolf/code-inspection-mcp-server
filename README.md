@@ -336,15 +336,6 @@ Finds code smells, structural clones, duplicate segments, and scans for unused c
   }
   ```
 
-#### `pattern_miner_find_dead_code`
-- **Description**: Traces exports, imports, and variables to find unused code.
-- **Inputs**:
-  - `paths` (string[]): Targets to analyze.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run pattern_miner_find_dead_code '{"paths": ["packages/shared/src"]}'
-  ```
-
 #### `pattern_miner_find_clones`
 - **Description**: Matches code blocks for similar clones using Semgrep engine comparisons.
 - **Inputs**:

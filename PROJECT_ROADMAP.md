@@ -123,11 +123,11 @@ The `repograph_register_intent` tool is what differentiates Hermes RepoGraph fro
 ---
 
 ### 5. `@hermes/pattern-miner` — Code Archaeology Engine
-**What it does:** Scans codebases for dead code, anti-patterns, code smells, and structural issues. Supports built-in patterns and user-defined custom patterns.
+**What it does:** Scans codebases for anti-patterns, code smells, and structural issues. Supports built-in patterns and user-defined custom patterns.
 
 **Dependencies:** `@hermes/shared`, `web-tree-sitter` (for AST-based pattern detection)
 
-**MCP tools provided:** `scan`, `find_dead_code`, `get_pattern_catalog`, `learn_pattern`
+**MCP tools provided:** `scan`, `find_clones`, `blueprint_search`, `get_pattern_catalog`, `learn_pattern`
 
 **Why Phase 4:** Builds on TokenSqueezer's AST infrastructure. Needs Tree-sitter grammars already loaded (shared from token-squeezer). The `learn_pattern` tool creates a feedback loop: agent learns what patterns matter, registers them, and future scans catch them.
 
@@ -135,7 +135,6 @@ The `repograph_register_intent` tool is what differentiates Hermes RepoGraph fro
 
 | Category | Patterns | Detection Method |
 |----------|----------|-----------------|
-| **Dead Code** | Unused exports, unreachable branches, orphaned functions | AST traversal + export reference counting |
 | **Architecture** | Circular dependencies, god objects (>15 methods), leaky abstractions | Import graph traversal + class analysis |
 | **JS/TS** | `any` usage, nested callbacks (>4 deep), magic numbers, mutable exports, forgotten `debugger` | AST pattern matching |
 | **Python** | Bare `except:`, mutable default args, global mutation, wildcard imports | AST pattern matching |

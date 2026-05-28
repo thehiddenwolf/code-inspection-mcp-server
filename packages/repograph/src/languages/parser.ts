@@ -1,4 +1,5 @@
 import type { Symbol, GraphEdge } from '../types.js';
+import { LanguagePackRegistry } from '@hermes/shared';
 
 export interface LanguageParser {
   extensions: string[];
@@ -7,31 +8,33 @@ export interface LanguageParser {
   extractRelationships(content: string, filePath: string): GraphEdge[];
 }
 
-const registry = new Map<string, LanguageParser>();
-
-export function registerParser(parser: LanguageParser): void {
-  for (const ext of parser.extensions) {
-    registry.set(ext.toLowerCase(), parser);
-  }
-}
-
-import { JavaScriptParser } from './javascript.js';
-import { CSharpParser } from './csharp.js';
-import { VBNetParser } from './vbnet.js';
-import { PythonParser } from './python.js';
-import { SQLParser } from './sql.js';
-
-registerParser(JavaScriptParser);
-registerParser(CSharpParser);
-registerParser(VBNetParser);
-registerParser(PythonParser);
-registerParser(SQLParser);
-
 export function getParserForFile(filePath: string): LanguageParser | undefined {
-  const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
-  return registry.get(ext);
+  const extIndex = filePath.lastIndexOf('.');
+  if (extIndex === -1) return undefined;
+  const ext = filePath.slice(extIndex).toLowerCase();
+
+  const registry = LanguagePackRegistry.getInstance();
+  const pack = registry.getLanguagePackByFileExtension(ext);
+  if (pack && pack.repograph) {
+    return {
+      extensions: pack.fileExtensions,
+      extractImports: pack.repograph.extractImports,
+      extractDeclarations: pack.repograph.extractDeclarations,
+      extractRelationships: pack.repograph.extractRelationships,
+    };
+  }
+  return undefined;
 }
 
 export function getSupportedExtensions(): Set<string> {
-  return new Set(registry.keys());
+  const extensions = new Set<string>();
+  const packs = LanguagePackRegistry.getInstance().getAll();
+  for (const pack of packs) {
+    if (pack.repograph) {
+      for (const ext of pack.fileExtensions) {
+        extensions.add(ext.toLowerCase());
+      }
+    }
+  }
+  return extensions;
 }

@@ -96,8 +96,8 @@ export async function detectGodObject(
           line: i + 1,
           column: 0,
           message: `Class '${className}' has ${methodCount} methods — exceeds max ${maxMethods}. Consider splitting into smaller focused classes.`,
-          severity: 'warning' as PatternSeverityType,
-          category: 'architecture' as PatternCategoryType,
+          severity: 'warning',
+          category: 'architecture',
           snippet: `class ${className} { /* ${methodCount} methods */ }`,
         });
       }

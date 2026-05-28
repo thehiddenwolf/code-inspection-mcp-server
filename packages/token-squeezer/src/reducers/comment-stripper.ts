@@ -48,31 +48,9 @@ export function stripComments(code: string, language: string): StrippedResult {
 }
 
 function getCommentPatterns(language: string): string[] {
-  switch (language) {
-    case 'javascript':
-    case 'typescript':
-    case 'jsx':
-    case 'tsx':
-    case 'go':
-      return [
-        // Line comments
-        '//[^\n]*',
-        // Block comments (including JSDoc)
-        '/\\*[\\s\\S]*?\\*/',
-      ];
-    case 'python':
-      return [
-        // Hash comments
-        '#[^\n]*',
-        // Triple-double-quoted docstrings
-        '"""\\n[\\s\\S]*?"""',
-        // Triple-single-quoted docstrings
-        "'''\\n[\\s\\S]*?'''",
-        // Single-line triple-quoted strings used as docstrings
-        '"""[^"]*?"""',
-        "'''[^']*?'''",
-      ];
-    default:
-      return [];
-  }
+  // Generic fallback if no pack is registered (default to standard C-style comments)
+  return [
+    '//[^\n]*',
+    '/\\*[\\s\\S]*?\\*/',
+  ];
 }

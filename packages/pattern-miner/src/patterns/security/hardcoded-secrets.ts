@@ -91,7 +91,7 @@ export async function detectHardcodedSecrets(
           column: match.index,
           message: `Hardcoded ${label} detected — store in environment variables or a vault`,
           severity,
-          category: 'security' as PatternCategoryType,
+          category: 'security',
           snippet,
         });
       }

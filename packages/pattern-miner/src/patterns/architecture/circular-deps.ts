@@ -100,8 +100,8 @@ export async function detectCircularDeps(
           line: 1,
           column: 0,
           message: `Circular dependency detected: ${cycleStr}`,
-          severity: 'error' as PatternSeverityType,
-          category: 'architecture' as PatternCategoryType,
+          severity: 'error',
+          category: 'architecture',
           snippet: `Cycle: ${cycleStr}`,
         });
       }

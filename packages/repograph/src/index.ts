@@ -29,7 +29,7 @@ import { GraphEngine } from './graph-engine.js';
 import { FileIndexer } from './file-indexer.js';
 import type { IndexedFile, IndexedProject } from './file-indexer.js';
 import type { QueryScope } from './types.js';
-import { createGraphStore, loadEngineFromStore } from './graph-store.js';
+import { createGraphStore, loadEngineFromStore, computeFileHash } from './graph-store.js';
 import type { GraphStore } from './graph-store.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -198,7 +198,7 @@ function findCodeReferences(
       const sqlFuncRe = /CREATE\s+(?:FUNCTION|PROCEDURE)\s+(?:[\w"`]+\.)?([\w"`]+)/i;
 
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         const lineNum = i + 1;
 
         if (isJsTsCs) {
@@ -238,12 +238,12 @@ function findCodeReferences(
         } else if (isSql) {
           const tableMatch = sqlTableRe.exec(line);
           if (tableMatch) {
-            currentClassOrTable = tableMatch[1]!.replace(/['"`]/g, '');
+            currentClassOrTable = tableMatch[1].replace(/['"`]/g, '');
             currentMethod = 'None';
           }
           const funcMatch = sqlFuncRe.exec(line);
           if (funcMatch) {
-            currentMethod = funcMatch[1]!.replace(/['"`]/g, '');
+            currentMethod = funcMatch[1].replace(/['"`]/g, '');
             currentClassOrTable = 'None';
           }
         }
@@ -494,9 +494,22 @@ const TOOLS: ToolDef[] = [
       const stats = indexer.applyProjectToGraph(graph, project);
       context.currentProjectRoot = dirPath;
 
-      // Track all indexed files
+      // Track all indexed files and persist to store
+      const { store } = context;
       for (const f of project.files) {
         indexedFiles.add(f.filePath);
+        try {
+          const fullPath = path.join(dirPath, f.filePath);
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          const hash = computeFileHash(content);
+          store.recordIndexedFile(f.filePath, hash, f.nodes.length);
+          for (const node of f.nodes) {
+            try { store.insertNode(node); } catch { /* duplicate */ }
+          }
+          for (const edge of f.edges) {
+            try { store.insertEdge(edge); } catch { /* duplicate */ }
+          }
+        } catch { /* ignore read/insert errors */ }
       }
 
       saveGraphState(context);

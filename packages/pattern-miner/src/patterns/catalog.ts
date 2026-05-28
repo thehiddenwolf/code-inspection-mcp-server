@@ -14,69 +14,7 @@ export interface CatalogEntry {
  * definitions and detection functions.
  */
 const catalog: CatalogEntry[] = [
-  // ── Dead Code ──────────────────────────────────────────
-  {
-    definition: {
-      id: 'unused-exports',
-      name: 'Unused Export',
-      description: 'Detects exported symbols (functions, variables, classes) that are never imported elsewhere in the project. Unused exports bloat the bundle and confuse maintainers.',
-      category: 'dead_code' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
-      languages: ['typescript', 'javascript'],
-      pattern: 'export (function|const|let|var|class|interface|type) <name>',
-      message_template: "Export '${symbol}' is defined but never imported elsewhere",
-      remediation: 'Remove the export keyword if the symbol is only used internally, or remove the definition entirely if unused.',
-      examples: [
-        { before: 'export function unusedHelper() { ... }', after: 'function unusedHelper() { ... }', description: 'Remove export if used internally' },
-      ],
-    },
-    detector: async (files) => {
-      const mod = await import('./dead-code/unused-exports.js');
-      return mod.detectUnusedExports(files);
-    },
-  },
 
-  {
-    definition: {
-      id: 'unreachable-branches',
-      name: 'Unreachable Branch',
-      description: 'Detects code placed after return, throw, break, or continue statements that can never execute. This is typically a bug or leftover dead code.',
-      category: 'dead_code' as PatternCategoryType,
-      severity: 'error' as PatternSeverityType,
-      languages: ['typescript', 'javascript'],
-      pattern: 'return/throw <statement>;\\n<code>',
-      message_template: 'Code after control flow statement is unreachable',
-      remediation: 'Remove or restructure the unreachable code.',
-      examples: [
-        { before: 'function foo() { return x; console.log("never"); }', after: 'function foo() { return x; }', description: 'Remove dead code after return' },
-      ],
-    },
-    detector: async (files) => {
-      const mod = await import('./dead-code/unreachable-branches.js');
-      return mod.detectUnreachableBranches(files);
-    },
-  },
-
-  {
-    definition: {
-      id: 'orphaned-functions',
-      name: 'Orphaned Function',
-      description: 'Detects function definitions that are never called anywhere in the project. Orphaned functions indicate dead code that should be pruned.',
-      category: 'dead_code' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
-      languages: ['typescript', 'javascript'],
-      pattern: 'function <name>() { ... }  // never called',
-      message_template: "Function '${name}' is defined but never called",
-      remediation: 'Remove the function if it is dead code, or add a call site if it was intended to be used.',
-      examples: [
-        { before: 'function unused() { return 42; }', after: '// removed', description: 'Remove orphaned function' },
-      ],
-    },
-    detector: async (files) => {
-      const mod = await import('./dead-code/orphaned-functions.js');
-      return mod.detectOrphanedFunctions(files);
-    },
-  },
 
   // ── Anti-patterns (JS/TS) ──────────────────────────────
   {
@@ -84,8 +22,8 @@ const catalog: CatalogEntry[] = [
       id: 'any-usage',
       name: 'Any Type Usage',
       description: 'Detects usage of `any` type annotations in TypeScript. Overuse of `any` defeats the purpose of TypeScript type checking.',
-      category: 'best_practice' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
+      category: 'best_practice',
+      severity: 'warning',
       languages: ['typescript'],
       pattern: 'variable: any',
       message_template: "TypeScript 'any' type used — consider a more specific type",
@@ -105,8 +43,8 @@ const catalog: CatalogEntry[] = [
       id: 'magic-numbers',
       name: 'Magic Number',
       description: 'Detects numeric literals used directly in code without being assigned to a named constant. Magic numbers reduce readability and maintainability.',
-      category: 'style' as PatternCategoryType,
-      severity: 'info' as PatternSeverityType,
+      category: 'style',
+      severity: 'info',
       languages: ['typescript', 'javascript'],
       pattern: '<number>  // not assigned to a named constant',
       message_template: "Magic number '${value}' detected — assign to a named constant",
@@ -126,8 +64,8 @@ const catalog: CatalogEntry[] = [
       id: 'nested-callbacks',
       name: 'Nested Callbacks',
       description: 'Detects deeply nested callback functions (callback hell) exceeding a configurable depth threshold (default: 3). Deep nesting harms readability.',
-      category: 'complexity' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
+      category: 'complexity',
+      severity: 'warning',
       languages: ['typescript', 'javascript'],
       pattern: 'asyncFunc1(() => { asyncFunc2(() => { asyncFunc3(() => { ... }) }) })',
       message_template: 'Callback nesting depth of ${depth} exceeds max ${maxDepth} — consider refactoring with async/await or Promises',
@@ -148,8 +86,8 @@ const catalog: CatalogEntry[] = [
       id: 'bare-except',
       name: 'Bare Except Clause',
       description: 'Detects bare `except:` clauses that catch ALL exceptions, including SystemExit and KeyboardInterrupt. This is a Python anti-pattern.',
-      category: 'best_practice' as PatternCategoryType,
-      severity: 'error' as PatternSeverityType,
+      category: 'best_practice',
+      severity: 'error',
       languages: ['python'],
       pattern: 'except:  # catches everything',
       message_template: "Bare 'except:' catches all exceptions — specify exception type(s)",
@@ -169,8 +107,8 @@ const catalog: CatalogEntry[] = [
       id: 'mutable-defaults',
       name: 'Mutable Default Argument',
       description: 'Detects mutable default arguments in Python function definitions (e.g., `def foo(l=[]):`). Mutable defaults are shared across all calls.',
-      category: 'correctness' as PatternCategoryType,
-      severity: 'error' as PatternSeverityType,
+      category: 'correctness',
+      severity: 'error',
       languages: ['python'],
       pattern: 'def func(param=[]):  # mutable default',
       message_template: 'Mutable default argument detected — shared across all calls; use None instead',
@@ -191,8 +129,8 @@ const catalog: CatalogEntry[] = [
       id: 'circular-deps',
       name: 'Circular Dependency',
       description: 'Detects circular import/dependency chains between modules. Circular dependencies cause tight coupling and can lead to runtime errors.',
-      category: 'architecture' as PatternCategoryType,
-      severity: 'error' as PatternSeverityType,
+      category: 'architecture',
+      severity: 'error',
       languages: ['typescript', 'javascript', 'python'],
       pattern: 'A imports B → B imports C → C imports A',
       message_template: 'Circular dependency detected: ${cycle}',
@@ -212,8 +150,8 @@ const catalog: CatalogEntry[] = [
       id: 'god-object',
       name: 'God Object',
       description: 'Detects classes with too many methods (configurable threshold, default: 20). God objects violate the Single Responsibility Principle.',
-      category: 'architecture' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
+      category: 'architecture',
+      severity: 'warning',
       languages: ['typescript', 'javascript', 'python', 'java'],
       pattern: 'class LargeClass { method1() ... methodN() }',
       message_template: "Class '${name}' has ${count} methods — exceeds max ${max}. Consider splitting into smaller focused classes.",
@@ -234,8 +172,8 @@ const catalog: CatalogEntry[] = [
       id: 'hardcoded-secrets',
       name: 'Hardcoded Secret',
       description: 'Detects hardcoded credentials including API keys, passwords, tokens, connection strings, and private keys. These are a critical security risk.',
-      category: 'security' as PatternCategoryType,
-      severity: 'critical' as PatternSeverityType,
+      category: 'security',
+      severity: 'critical',
       languages: ['typescript', 'javascript', 'python', 'java', 'go', 'ruby', 'rust'],
       pattern: 'api_key = "sk-..."  # or similar credential patterns',
       message_template: 'Hardcoded ${type} detected — store in environment variables or a vault',
@@ -255,8 +193,8 @@ const catalog: CatalogEntry[] = [
       id: 'unsafe-eval',
       name: 'Unsafe Eval / Dynamic Code Execution',
       description: 'Detects usage of eval(), new Function(), exec(), and other dynamic code execution APIs. These allow arbitrary code execution and are a security vulnerability.',
-      category: 'security' as PatternCategoryType,
-      severity: 'critical' as PatternSeverityType,
+      category: 'security',
+      severity: 'critical',
       languages: ['typescript', 'javascript', 'python'],
       pattern: 'eval(userInput)  // or similar dynamic execution',
       message_template: "Usage of '${construct}' allows arbitrary code execution — avoid or sandbox",
@@ -277,8 +215,8 @@ const catalog: CatalogEntry[] = [
       id: 'cpd-clones',
       name: 'Code Clone (CPD)',
       description: 'Detects token-level code clones using PMD CPD\'s algorithm. Uses Rabin-Karp rolling hash over normalized token streams to find duplicated code blocks across files. Normalizes identifier names and literals to detect renamed variables.',
-      category: 'duplication' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
+      category: 'duplication',
+      severity: 'warning',
       languages: ['typescript', 'javascript', 'python'],
       pattern: 'tokenized analysis — finds structurally identical code blocks',
       message_template: 'Clone of ${target_file}:${target_lines} (${token_count} tokens)',
@@ -299,8 +237,8 @@ const catalog: CatalogEntry[] = [
       id: 'structural-clones',
       name: 'Structural Code Clone (AST Fingerprinting)',
       description: 'Detects structural code clones using AST fingerprinting with MinHash/LSH. Extracts structural skeletons (function/class shapes with names and literals stripped), computes MinHash signatures, and finds cross-file clones via LSH indexing. Detects Type-2 clones that Semgrep and CPD may miss.',
-      category: 'duplication' as PatternCategoryType,
-      severity: 'warning' as PatternSeverityType,
+      category: 'duplication',
+      severity: 'warning',
       languages: ['typescript', 'javascript', 'python'],
       pattern: 'AST skeleton matching — finds Type-2 structural clones with renamed identifiers',
       message_template: 'Structural clone of ${source}:${source_lines} (similarity: ${similarity})',

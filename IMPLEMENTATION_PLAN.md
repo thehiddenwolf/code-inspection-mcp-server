@@ -65,7 +65,6 @@ Initialize the monorepo, define shared schemas, and stand up the MCP gateway wit
   "architecture_shepherd_check",
   "architecture_shepherd_check_diff",
   "pattern_miner_scan",
-  "pattern_miner_find_dead_code",
   "pattern_miner_get_pattern_catalog",
   "pattern_miner_learn_pattern"
 ]
@@ -269,7 +268,6 @@ Code archaeology engine: dead code detection, anti-pattern scanning, code smells
 | Tool | Input | Output |
 |------|-------|--------|
 | `pattern_miner_scan` | `{ paths: string[], patterns?: PatternFilter }` | `{ scan_id, findings[], summary }` |
-| `pattern_miner_find_dead_code` | `{ paths: string[], options?: DeadCodeOptions }` | `{ dead_functions[], unused_exports[], orphaned_modules[] }` |
 | `pattern_miner_get_pattern_catalog` | `{}` | `{ patterns: PatternDefinition[] }` |
 | `pattern_miner_learn_pattern` | `{ definition: PatternDefinition }` | `{ pattern_id }` |
 

@@ -79,8 +79,8 @@ export async function detectStructuralClones(
       line: match.matchStartLine,
       end_line: match.matchEndLine,
       message: `Structural clone of "${match.queryLabel}" (similarity: ${(match.similarity * 100).toFixed(0)}%)`,
-      severity: 'warning' as PatternSeverityType,
-      category: 'duplication' as PatternCategoryType,
+      severity: 'warning',
+      category: 'duplication',
       snippet: `Structurally similar to "${match.queryLabel}" — ${match.renamed ? 'renamed identifiers' : 'same labels'}`,
     });
   }

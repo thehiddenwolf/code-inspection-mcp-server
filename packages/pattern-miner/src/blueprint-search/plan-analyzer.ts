@@ -101,7 +101,7 @@ export async function analyzePlan(
         searchPath: resolvePath,
         minConfidence: 0.3,
         maxResults: 5,
-      } as BlueprintSearchInput);
+      });
     } catch {
       // If search fails (e.g., no semgrep), return empty results
       searchResult = {

@@ -74,7 +74,6 @@ export const ScanInput = z.object({
   code: z.string().optional(),
   file_path: z.string().optional(),
   patterns: z.array(z.string()).optional(),
-  include_dead_code: z.boolean().optional(),
 });
 export type ScanInputType = z.infer<typeof ScanInput>;
 

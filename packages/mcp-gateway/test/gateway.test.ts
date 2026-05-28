@@ -30,14 +30,14 @@ describe('MCP Gateway Server Core (In-Memory)', () => {
     expect(response.tools.length).toBe(TOOLS.length);
 
     const names = response.tools.map((t: any) => t.name);
-    expect(names).toContain('token_squeezer_squeeze');
+    expect(names).toContain('token_squeezer_read_symbols');
     expect(names).toContain('architecture_shepherd_check');
 
     // Clean up
     await Promise.all([client.close(), server.close()]);
   });
 
-  it('should run token_squeezer_squeeze and return the squeezed result', async () => {
+  it('should run token_squeezer_read_symbols and return the squeezed result', async () => {
     const server = createServer();
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -52,7 +52,7 @@ describe('MCP Gateway Server Core (In-Memory)', () => {
     ]);
 
     const response = await client.callTool({
-      name: 'token_squeezer_squeeze',
+      name: 'token_squeezer_read_symbols',
       arguments: {
         code: 'console.log("hello");',
         language: 'javascript',
@@ -67,7 +67,7 @@ describe('MCP Gateway Server Core (In-Memory)', () => {
     await Promise.all([client.close(), server.close()]);
   });
 
-  it('should run token_squeezer_squeeze with filePath and auto-detect language', async () => {
+  it('should run token_squeezer_read_symbols with filePath and auto-detect language', async () => {
     const server = createServer();
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 
@@ -82,7 +82,7 @@ describe('MCP Gateway Server Core (In-Memory)', () => {
     ]);
 
     const response = await client.callTool({
-      name: 'token_squeezer_squeeze',
+      name: 'token_squeezer_read_symbols',
       arguments: {
         filePath: 'packages/token-squeezer/test/fixtures/sample.ts',
       },

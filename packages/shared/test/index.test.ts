@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Tools schemas ───────────────────────────────────────────────────────────
 import {
@@ -631,6 +631,9 @@ describe('TransportType', () => {
 });
 
 describe('LanguagePackRegistry', () => {
+  beforeEach(() => {
+    LanguagePackRegistry.setInstance(new LanguagePackRegistry());
+  });
   it('is a singleton by default and allows setting/getting instance', () => {
     const r1 = LanguagePackRegistry.getInstance();
     const r2 = LanguagePackRegistry.getInstance();
@@ -650,8 +653,10 @@ describe('LanguagePackRegistry', () => {
       metadata: {
         name: 'test-pack',
         version: '1.0.0',
-        fileExtensions: ['.ts', 'tsx', 'JS']
+        fileExtensions: ['.ts', 'tsx', 'JS'],
       },
+      supportedLanguages: ['.ts', 'tsx', 'JS'],
+      fileExtensions: ['.ts', 'tsx', 'JS'],
       parserName: 'test-parser'
     };
 
@@ -671,7 +676,7 @@ describe('LanguagePackRegistry', () => {
     expect(registry.lookup('.py')).toBeUndefined();
   });
 
-  it('handles registering a pack with no file extensions', () => {
+  it('handles registering a pack with no supported languages', () => {
     const registry = new LanguagePackRegistry();
     const mockPack: any = {
       metadata: {
@@ -690,16 +695,20 @@ describe('LanguagePackRegistry', () => {
       metadata: {
         name: 'pack1',
         version: '1.0.0',
-        fileExtensions: ['.ts', '.tsx']
+        fileExtensions: ['.ts', '.tsx'],
       },
+      supportedLanguages: ['.ts', '.tsx'],
+      fileExtensions: ['.ts', '.tsx'],
       parserName: 'parser1'
     };
     const mockPack2: LanguagePack = {
       metadata: {
         name: 'pack2',
         version: '1.0.0',
-        fileExtensions: ['.py']
+        fileExtensions: ['.py'],
       },
+      supportedLanguages: ['.py'],
+      fileExtensions: ['.py'],
       parserName: 'parser2'
     };
 
@@ -716,10 +725,14 @@ describe('LanguagePackRegistry', () => {
     const registry = new LanguagePackRegistry();
     const pack1: LanguagePack = {
       metadata: { name: 'ts1', version: '1.0.0', fileExtensions: ['.ts'] },
+      supportedLanguages: ['.ts'],
+      fileExtensions: ['.ts'],
       parserName: 'parser1'
     };
     const pack2: LanguagePack = {
       metadata: { name: 'ts2', version: '1.0.0', fileExtensions: ['.ts'] },
+      supportedLanguages: ['.ts'],
+      fileExtensions: ['.ts'],
       parserName: 'parser2'
     };
 
@@ -732,101 +745,136 @@ describe('LanguagePackRegistry', () => {
 });
 
 describe('LanguagePackLoader', () => {
-  it('loads valid language pack from string and compiles regexes', () => {
-    const validJson = JSON.stringify({
-      metadata: {
-        name: 'typescript',
-        version: '1.0.0',
-        fileExtensions: ['.ts', '.tsx']
-      },
-      parserName: 'tree-sitter-typescript',
-      regexPatterns: {
-        commentDetection: '//.*|/\\*[\\s\\S]*?\\*/',
-        importExtraction: '/^import\\s+/gm',
-        exportExtraction: '/^export\\s+/gm'
-      }
-    });
-
-    const pack = LanguagePackLoader.loadFromString(validJson);
-    expect(pack.metadata.name).toBe('typescript');
-    expect(pack.parserName).toBe('tree-sitter-typescript');
-    expect(pack.regexPatterns?.commentDetection).toBeInstanceOf(RegExp);
-    expect(pack.regexPatterns?.commentDetection.source).toBe('\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/');
-    expect(pack.regexPatterns?.importExtraction).toBeInstanceOf(RegExp);
-    expect(pack.regexPatterns?.importExtraction.source).toBe('^import\\s+');
-    expect(pack.regexPatterns?.importExtraction.flags).toBe('gm');
-    expect(pack.regexPatterns?.exportExtraction).toBeInstanceOf(RegExp);
-    expect(pack.regexPatterns?.exportExtraction.source).toBe('^export\\s+');
-    expect(pack.regexPatterns?.exportExtraction.flags).toBe('gm');
+  beforeEach(() => {
+    LanguagePackRegistry.setInstance(new LanguagePackRegistry());
   });
 
-  it('loads rules correctly from string', () => {
-    const json = JSON.stringify({
-      metadata: { name: 'test', version: '1.0.0', fileExtensions: ['.test'] },
-      parserName: 'test-parser',
-      rules: {
-        comment: { action: 'document', maxLines: 5 },
-        import: { action: 'shrink', unusedOnly: true }
-      }
-    });
-    const pack = LanguagePackLoader.loadFromString(json);
-    expect(pack.rules?.comment?.action).toBe('document');
-    expect(pack.rules?.comment?.maxLines).toBe(5);
-    expect(pack.rules?.import?.action).toBe('shrink');
-    expect(pack.rules?.import?.unusedOnly).toBe(true);
+  it('loads valid language pack from module file and validates regexes', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-loader-test-'));
+    const packPath = path.join(tempDir, 'typescript-pack.js');
+    const packContent = `
+      export default {
+        metadata: {
+          name: 'typescript',
+          version: '1.0.0',
+          fileExtensions: ['.ts', '.tsx']
+        },
+        supportedLanguages: ['.ts', '.tsx'],
+        parserName: 'tree-sitter-typescript',
+        regexPatterns: {
+          commentDetection: /\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/+/g,
+          importExtraction: /^import\\s+/gm,
+          exportExtraction: /^export\\s+/gm
+        }
+      };
+    `;
+    fs.writeFileSync(packPath, packContent, 'utf8');
+
+    try {
+      const packResult = await LanguagePackLoader.loadFromFile(packPath);
+      const pack = Array.isArray(packResult) ? packResult[0] : packResult;
+      expect(pack.metadata.name).toBe('typescript');
+      expect(pack.parserName).toBe('tree-sitter-typescript');
+      expect(pack.regexPatterns?.commentDetection).toBeInstanceOf(RegExp);
+      expect(pack.regexPatterns?.commentDetection.source).toBe('\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/+');
+      expect(pack.regexPatterns?.importExtraction).toBeInstanceOf(RegExp);
+      expect(pack.regexPatterns?.importExtraction.source).toBe('^import\\s+');
+      expect(pack.regexPatterns?.importExtraction.flags).toBe('gm');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
-  it('loads squeezer rules correctly from string', () => {
-    const json = JSON.stringify({
-      metadata: { name: 'test', version: '1.0.0', fileExtensions: ['.test'] },
-      parserName: 'test-parser',
-      squeezer: {
-        bodyPlaceholder: '{ /* body */ }',
-        bodyPatterns: [
-          { pattern: '/(func)/g', replacement: '$1' }
-        ],
-        importStartRegex: '/^import/g',
-        wildcardRules: [
-          { pattern: '/from/', action: 'replace', replacement: 'to', sanitizeGroupIndex: 1 }
-        ],
-        wildcardFallbackAction: 'remove'
-      }
-    });
-    const pack = LanguagePackLoader.loadFromString(json);
-    expect(pack.squeezer?.bodyPlaceholder).toBe('{ /* body */ }');
-    expect(pack.squeezer?.bodyPatterns).toBeDefined();
-    expect(pack.squeezer?.bodyPatterns?.[0].pattern).toBeInstanceOf(RegExp);
-    expect(pack.squeezer?.bodyPatterns?.[0].pattern.source).toBe('(func)');
-    expect(pack.squeezer?.importStartRegex).toBeInstanceOf(RegExp);
-    expect(pack.squeezer?.importStartRegex?.source).toBe('^import');
-    expect(pack.squeezer?.wildcardRules?.[0].pattern).toBeInstanceOf(RegExp);
-    expect(pack.squeezer?.wildcardRules?.[0].pattern.source).toBe('from');
-    expect(pack.squeezer?.wildcardRules?.[0].action).toBe('replace');
-    expect(pack.squeezer?.wildcardRules?.[0].replacement).toBe('to');
-    expect(pack.squeezer?.wildcardRules?.[0].sanitizeGroupIndex).toBe(1);
-    expect(pack.squeezer?.wildcardFallbackAction).toBe('remove');
+  it('loads rules correctly from module file', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-loader-test-'));
+    const packPath = path.join(tempDir, 'rules-pack.js');
+    const packContent = `
+      export default {
+        metadata: { name: 'test', version: '1.0.0', fileExtensions: ['.test'] },
+        supportedLanguages: ['.test'],
+        parserName: 'test-parser',
+        rules: {
+          comment: { action: 'document', maxLines: 5 },
+          import: { action: 'shrink', unusedOnly: true }
+        }
+      };
+    `;
+    fs.writeFileSync(packPath, packContent, 'utf8');
+
+    try {
+      const packResult = await LanguagePackLoader.loadFromFile(packPath);
+      const pack = Array.isArray(packResult) ? packResult[0] : packResult;
+      expect(pack.rules?.comment?.action).toBe('document');
+      expect(pack.rules?.comment?.maxLines).toBe(5);
+      expect(pack.rules?.import?.action).toBe('shrink');
+      expect(pack.rules?.import?.unusedOnly).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
-  it('throws Zod error on malformed/invalid configuration', () => {
-    const invalidJson = JSON.stringify({
-      metadata: {
-        name: 'typescript',
-        // missing version and fileExtensions
-      },
-      parserName: '' // should be min(1)
-    });
+  it('loads squeezer rules correctly from module file', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-loader-test-'));
+    const packPath = path.join(tempDir, 'squeezer-pack.js');
+    const packContent = `
+      export default {
+        metadata: { name: 'test', version: '1.0.0', fileExtensions: ['.test'] },
+        supportedLanguages: ['.test'],
+        parserName: 'test-parser',
+        squeezer: {
+          bodyPlaceholder: '{ /* body */ }',
+          bodyPatterns: [
+            { pattern: /(func)/g, replacement: '$1' }
+          ],
+          importStartRegex: /^import/g,
+          wildcardRules: [
+            { pattern: /from/, action: 'replace', replacement: 'to', sanitizeGroupIndex: 1 }
+          ],
+          wildcardFallbackAction: 'remove'
+        }
+      };
+    `;
+    fs.writeFileSync(packPath, packContent, 'utf8');
 
-    expect(() => LanguagePackLoader.loadFromString(invalidJson)).toThrow();
+    try {
+      const packResult = await LanguagePackLoader.loadFromFile(packPath);
+      const pack = Array.isArray(packResult) ? packResult[0] : packResult;
+      expect(pack.squeezer?.bodyPlaceholder).toBe('{ /* body */ }');
+      expect(pack.squeezer?.bodyPatterns).toBeDefined();
+      expect(pack.squeezer?.bodyPatterns?.[0].pattern).toBeInstanceOf(RegExp);
+      expect(pack.squeezer?.bodyPatterns?.[0].pattern.source).toBe('(func)');
+      expect(pack.squeezer?.importStartRegex).toBeInstanceOf(RegExp);
+      expect(pack.squeezer?.importStartRegex?.source).toBe('^import');
+      expect(pack.squeezer?.wildcardRules?.[0].pattern).toBeInstanceOf(RegExp);
+      expect(pack.squeezer?.wildcardRules?.[0].pattern.source).toBe('from');
+      expect(pack.squeezer?.wildcardRules?.[0].action).toBe('replace');
+      expect(pack.squeezer?.wildcardRules?.[0].replacement).toBe('to');
+      expect(pack.squeezer?.wildcardRules?.[0].sanitizeGroupIndex).toBe(1);
+      expect(pack.squeezer?.wildcardFallbackAction).toBe('remove');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
-  it('throws SyntaxError on syntactically invalid/malformed JSON string', () => {
-    expect(() => LanguagePackLoader.loadFromString('{ malformed json }')).toThrow(SyntaxError);
-  });
+  it('throws Zod error on malformed/invalid configuration', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-loader-test-'));
+    const packPath = path.join(tempDir, 'invalid-pack.js');
+    const packContent = `
+      export default {
+        metadata: {
+          name: 'typescript',
+          // missing version and fileExtensions
+        },
+        parserName: '' // should be min(1)
+      };
+    `;
+    fs.writeFileSync(packPath, packContent, 'utf8');
 
-  it('handles invalid input types and schemas gracefully in loadFromString', () => {
-    expect(() => LanguagePackLoader.loadFromString(null as any)).toThrow('expected JSON string');
-    expect(() => LanguagePackLoader.loadFromString('   ')).toThrow('JSON string is empty');
-    expect(() => LanguagePackLoader.loadFromString('{}')).toThrow('Schema validation failed');
+    try {
+      await expect(LanguagePackLoader.loadFromFile(packPath)).rejects.toThrow();
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('safely parses regex flags and patterns in parseRegexString', () => {
@@ -852,26 +900,36 @@ describe('LanguagePackLoader', () => {
     expect(() => parseRegexString('(')).toThrow('Invalid regular expression');
   });
 
-  it('loads a single pack from file or multiple packs from a directory', () => {
+  it('loads a single pack from file or multiple packs from a directory', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-loader-test-'));
     
-    const pack1Content = JSON.stringify({
-      metadata: { name: 'python', version: '1.0.0', fileExtensions: ['.py'] },
-      parserName: 'tree-sitter-python',
-      regexPatterns: { commentDetection: '#.*' }
-    });
+    const pack1Content = `
+      export default {
+        metadata: { name: 'python', version: '1.0.0', fileExtensions: ['.py'] },
+        supportedLanguages: ['.py'],
+        parserName: 'tree-sitter-python',
+        regexPatterns: { commentDetection: /#.*/ }
+      };
+    `;
 
-    const pack2Content = JSON.stringify({
-      metadata: { name: 'go', version: '1.0.0', fileExtensions: ['.go'] },
-      parserName: 'tree-sitter-go',
-      regexPatterns: { commentDetection: '//.*' }
-    });
+    const pack2Content = `
+      export default {
+        metadata: { name: 'go', version: '1.0.0', fileExtensions: ['.go'] },
+        supportedLanguages: ['.go'],
+        parserName: 'tree-sitter-go',
+        regexPatterns: { commentDetection: /\\/\\/.*/ }
+      };
+    `;
 
-    const malformedContent = '{ invalid json }';
+    const malformedContent = `
+      export default {
+        metadata: { name: 'malformed' }
+      };
+    `;
 
-    const pack1Path = path.join(tempDir, 'python.json');
-    const pack2Path = path.join(tempDir, 'go.json');
-    const malformedPath = path.join(tempDir, 'malformed.json');
+    const pack1Path = path.join(tempDir, 'python.js');
+    const pack2Path = path.join(tempDir, 'go.js');
+    const malformedPath = path.join(tempDir, 'malformed.js');
 
     fs.writeFileSync(pack1Path, pack1Content);
     fs.writeFileSync(pack2Path, pack2Content);
@@ -880,25 +938,26 @@ describe('LanguagePackLoader', () => {
     const registry = new LanguagePackRegistry();
 
     // 1. Test loadFromFile on valid file
-    const loadedPack1 = LanguagePackLoader.loadFromFile(pack1Path);
+    const loadedPackResult1 = await LanguagePackLoader.loadFromFile(pack1Path);
+    const loadedPack1 = Array.isArray(loadedPackResult1) ? loadedPackResult1[0] : loadedPackResult1;
     expect(loadedPack1.metadata.name).toBe('python');
 
     // 2. Test loadFromFile on malformed file
-    expect(() => LanguagePackLoader.loadFromFile(malformedPath)).toThrow();
+    await expect(LanguagePackLoader.loadFromFile(malformedPath)).rejects.toThrow();
 
     // 3. Test loadFromDirectory (should load python and go, and print/log warning for malformed)
-    LanguagePackLoader.loadFromDirectory(tempDir, registry);
+    await LanguagePackLoader.loadFromDirectory(tempDir, registry);
     expect(registry.lookup('.py')?.metadata.name).toBe('python');
     expect(registry.lookup('.go')?.metadata.name).toBe('go');
 
     // 4. Test loadLanguagePacks on file
     const registry2 = new LanguagePackRegistry();
-    loadLanguagePacks(registry2, pack1Path);
+    await loadLanguagePacks(registry2, pack1Path);
     expect(registry2.lookup('.py')?.metadata.name).toBe('python');
 
     // 5. Test loadLanguagePacks on directory
     const registry3 = new LanguagePackRegistry();
-    loadLanguagePacks(registry3, tempDir);
+    await loadLanguagePacks(registry3, tempDir);
     expect(registry3.lookup('.py')?.metadata.name).toBe('python');
     expect(registry3.lookup('.go')?.metadata.name).toBe('go');
 
@@ -906,30 +965,228 @@ describe('LanguagePackLoader', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('handles non-existent directory in loadFromDirectory gracefully', () => {
+  it('handles non-existent directory in loadFromDirectory gracefully', async () => {
     const registry = new LanguagePackRegistry();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    LanguagePackLoader.loadFromDirectory('/non-existent-directory-xyz', registry);
+    await LanguagePackLoader.loadFromDirectory('/non-existent-directory-xyz', registry);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[LanguagePackLoader] Directory does not exist')
     );
     warnSpy.mockRestore();
   });
 
-  it('handles missing configPath in loadLanguagePacks gracefully', () => {
+  it('handles missing configPath in loadLanguagePacks gracefully', async () => {
     const registry = new LanguagePackRegistry();
-    loadLanguagePacks(registry, undefined);
+    await loadLanguagePacks(registry, undefined);
     expect(registry.getAll()).toHaveLength(0);
   });
 
-  it('handles processing error in loadLanguagePacks gracefully', () => {
+  it('handles processing error in loadLanguagePacks gracefully', async () => {
     const registry = new LanguagePackRegistry();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    loadLanguagePacks(registry, '/non-existent-path-abc');
+    await loadLanguagePacks(registry, '/non-existent-path-abc');
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('[LanguagePackLoader] Warning: Failed to process configPath')
     );
     warnSpy.mockRestore();
+  });
+});
+
+import { findServerConfigPath, loadConfigAndPacks, parseLanguagePackRef } from '../src/index.js';
+
+describe('ServerConfig & ConfigLoader', () => {
+  it('findServerConfigPath resolves existing files', () => {
+    const tempConfig = path.join(os.tmpdir(), `hermes-config-${Date.now()}.json`);
+    fs.writeFileSync(tempConfig, JSON.stringify({ languagePacks: [] }), 'utf8');
+
+    try {
+      const found = findServerConfigPath(tempConfig);
+      expect(found).toBe(tempConfig);
+    } finally {
+      fs.unlinkSync(tempConfig);
+    }
+  });
+
+  it('parseLanguagePackRef identifies types correctly', () => {
+    const configDir = '/etc/hermes';
+    const refGit1 = parseLanguagePackRef('git+https://github.com/hermes/pack.git#main', configDir);
+    expect(refGit1.type).toBe('git');
+    expect(refGit1.gitUrl).toBe('https://github.com/hermes/pack.git');
+    expect(refGit1.gitRef).toBe('main');
+
+    const refGit2 = parseLanguagePackRef('https://github.com/hermes/pack.git', configDir);
+    expect(refGit2.type).toBe('git');
+    expect(refGit2.gitUrl).toBe('https://github.com/hermes/pack.git');
+
+    const refFile = parseLanguagePackRef('./custom/my-pack.js', configDir);
+    expect(refFile.type).toBe('file');
+    expect(refFile.resolvedPath).toBe(path.resolve(configDir, './custom/my-pack.js'));
+
+    const refNpm = parseLanguagePackRef('@scope/my-package', configDir);
+    expect(refNpm.type).toBe('npm');
+    expect(refNpm.packageName).toBe('@scope/my-package');
+  });
+
+  it('loadConfigAndPacks loads and registers local files', async () => {
+    const tempDir = path.join(os.tmpdir(), `hermes-config-test-${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const packPath = path.join(tempDir, 'custom-pack.js');
+    const configPath = path.join(tempDir, 'hermes-config.json');
+
+    const customPack = {
+      metadata: {
+        name: 'custom',
+        version: '1.0.0',
+        fileExtensions: ['.custom'],
+      },
+      supportedLanguages: ['.custom'],
+      parserName: 'tree-sitter-custom',
+      lintFix: {
+        commands: [['custom-fixer', '--write']],
+      },
+      patternMiner: {
+        patterns: [
+          {
+            id: 'custom-pattern-1',
+            name: 'Custom Pattern',
+            description: 'A custom pattern',
+            category: 'style',
+            severity: 'warning',
+            languages: ['custom'],
+            pattern: 'TODO',
+            message_template: 'Avoid TODOs',
+          },
+        ],
+      },
+    };
+
+    const serverConfig = {
+      languagePacks: [
+        './custom-pack.js',
+      ],
+    };
+
+    fs.writeFileSync(packPath, 'export default ' + JSON.stringify(customPack) + ';', 'utf8');
+    fs.writeFileSync(configPath, JSON.stringify(serverConfig), 'utf8');
+
+    const registry = new LanguagePackRegistry();
+
+    try {
+      await loadConfigAndPacks(registry, configPath);
+      const pack = registry.lookup('.custom');
+      expect(pack).toBeDefined();
+      expect(pack?.metadata.name).toBe('custom');
+      expect(pack?.lintFix?.commands).toEqual([['custom-fixer', '--write']]);
+      expect(pack?.patternMiner?.patterns?.[0].id).toBe('custom-pattern-1');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('loadConfigAndPacks loads and registers packs from environment variables', async () => {
+    const tempDir = path.join(os.tmpdir(), `hermes-env-test-${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const packPath = path.join(tempDir, 'env-pack.js');
+    const envPack = {
+      metadata: {
+        name: 'envlang',
+        version: '1.0.0',
+        fileExtensions: ['.envlang'],
+      },
+      supportedLanguages: ['.envlang'],
+      parserName: 'tree-sitter-envlang',
+    };
+
+    fs.writeFileSync(packPath, 'export default ' + JSON.stringify(envPack) + ';', 'utf8');
+
+    const originalHermesConfig = process.env.HERMES_CONFIG;
+    const originalHermesPacks = process.env.HERMES_LANGUAGE_PACKS;
+
+    const registry = new LanguagePackRegistry();
+
+    try {
+      // 1. Test raw JSON env config
+      process.env.HERMES_CONFIG = JSON.stringify({
+        languagePacks: [packPath],
+      });
+      await loadConfigAndPacks(registry);
+      expect(registry.lookup('.envlang')).toBeDefined();
+      expect(registry.lookup('.envlang')?.metadata.name).toBe('envlang');
+
+      // 2. Test direct list env config
+      const registry2 = new LanguagePackRegistry();
+      delete process.env.HERMES_CONFIG;
+      process.env.HERMES_LANGUAGE_PACKS = packPath;
+      await loadConfigAndPacks(registry2);
+      expect(registry2.lookup('.envlang')).toBeDefined();
+      expect(registry2.lookup('.envlang')?.metadata.name).toBe('envlang');
+    } finally {
+      if (originalHermesConfig === undefined) {
+        delete process.env.HERMES_CONFIG;
+      } else {
+        process.env.HERMES_CONFIG = originalHermesConfig;
+      }
+      if (originalHermesPacks === undefined) {
+        delete process.env.HERMES_LANGUAGE_PACKS;
+      } else {
+        process.env.HERMES_LANGUAGE_PACKS = originalHermesPacks;
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('loadConfigAndPacks loads and registers direct array JSON format config', async () => {
+    const tempDir = path.join(os.tmpdir(), `hermes-array-test-${Date.now()}`);
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const packPath = path.join(tempDir, 'array-pack.js');
+    const configPath = path.join(tempDir, 'hermes-config.json');
+
+    const arrayPack = {
+      metadata: {
+        name: 'arraylang',
+        version: '1.0.0',
+        fileExtensions: ['.arraylang'],
+      },
+      supportedLanguages: ['.arraylang'],
+      parserName: 'tree-sitter-arraylang',
+    };
+
+    const serverConfig = [
+      './array-pack.js',
+    ];
+
+    fs.writeFileSync(packPath, 'export default ' + JSON.stringify(arrayPack) + ';', 'utf8');
+    fs.writeFileSync(configPath, JSON.stringify(serverConfig), 'utf8');
+
+    const registry = new LanguagePackRegistry();
+
+    try {
+      await loadConfigAndPacks(registry, configPath);
+      expect(registry.lookup('.arraylang')).toBeDefined();
+      expect(registry.lookup('.arraylang')?.metadata.name).toBe('arraylang');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('findServerConfigPath searches ~/.code-inspection-mcp.json first', () => {
+    const homeConfig = path.join(os.homedir(), '.code-inspection-mcp.json');
+    const alreadyExists = fs.existsSync(homeConfig);
+    if (!alreadyExists) {
+      fs.writeFileSync(homeConfig, '[]', 'utf8');
+    }
+
+    try {
+      const found = findServerConfigPath();
+      expect(found).toBe(homeConfig);
+    } finally {
+      if (!alreadyExists) {
+        fs.unlinkSync(homeConfig);
+      }
+    }
   });
 });
 

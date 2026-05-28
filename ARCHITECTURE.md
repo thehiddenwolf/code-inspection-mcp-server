@@ -134,15 +134,12 @@ architecture_shepherd.suggest_manifest(path: string) -> ManifestSuggestion
 ### 2.3 PatternMiner
 
 **What it does:**  
-Code archaeology engine. Scans codebases for known anti-patterns, dead code, code smells, and architectural drift patterns. Generates a debt report with locations, severity, and remediation suggestions.
+Code archaeology engine. Scans codebases for known anti-patterns, code smells, and architectural drift patterns. Generates a debt report with locations, severity, and remediation suggestions.
 
 **MCP tool signatures:**
 ```
 pattern_miner_scan(paths: string[], patterns?: PatternFilter) -> ScanReport
   // Scan specified files/directories for all known patterns
-
-pattern_miner_find_dead_code(paths: string[], options?: DeadCodeOptions) -> DeadCodeResult
-  // Targeted dead code detection (unused exports, unreachable branches, orphaned functions)
 
 pattern_miner_get_pattern_catalog() -> PatternCatalog
   // Return all patterns the miner knows about
@@ -155,7 +152,6 @@ pattern_miner_learn_pattern(definition: PatternDefinition) -> PatternId
 
 | Category | Examples |
 |----------|----------|
-| **Dead Code** | Unused exports/unused variables, unreachable branches, orphaned utility functions |
 | **Architecture Smells** | Circular dependencies, god objects, leaky abstractions, layer violations |
 | **JS/TS Anti-patterns** | `any` usage, nested callbacks, mutable exports, forgotten debuggers, magic numbers |
 | **Python Anti-patterns** | Bare excepts, mutable default args, global mutation, wildcard imports |
@@ -171,15 +167,15 @@ pattern_miner_learn_pattern(definition: PatternDefinition) -> PatternId
   "total_lines": 28400,
   "findings": [
     {
-      "pattern_id": "DEAD-001",
-      "pattern_name": "unused_export",
-      "severity": "medium",
+      "pattern_id": "SEC-001",
+      "pattern_name": "hardcoded-secrets",
+      "severity": "critical",
       "file": "src/utils/helpers.ts",
       "line": 15,
-      "symbol": "deprecatedFormatDate",
-      "confidence": 0.92,
-      "context_snippet": "export function deprecatedFormatDate(date: Date) {...}",
-      "suggestion": "Remove or migrate consumers to formatDate()"
+      "symbol": "apiKey",
+      "confidence": 0.95,
+      "context_snippet": "const apiKey = 'xoxb-1234567890-1234567890';",
+      "suggestion": "Move secret key to configuration or environment variable"
     }
   ],
   "summary": {

@@ -3,7 +3,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { runScan, findDeadCode } from './scanner.js';
+import { runScan } from './scanner.js';
 import catalog, { getPatternById } from './patterns/catalog.js';
 import { generateMarkdownReport, generateJsonReport } from './reporter.js';
 import type { PatternFilter } from './types.js';
@@ -17,9 +17,8 @@ import type { BlueprintSearchInput } from './blueprint-search/types.js';
 /**
  * @hermes/pattern-miner MCP Server
  *
- * Provides six tools:
+ * Provides five tools:
  *   pattern_miner.scan              — Run a full pattern scan against a directory
- *   pattern_miner.find_dead_code    — Find dead code specifically
  *   pattern_miner.find_clones       — Find structural clones using Semgrep
  *   pattern_miner.blueprint_search  — Unified search using Semgrep + PMD CPD, merged & deduplicated
  *   pattern_miner.get_pattern_catalog  — List all built-in pattern definitions
@@ -85,48 +84,7 @@ server.registerTool(
   },
 );
 
-// ── Tool: pattern_miner.find_dead_code ──────────────────
-server.registerTool(
-  'pattern_miner.find_dead_code',
-  {
-    description: 'Find dead code (unused exports, unreachable branches, orphaned functions) in a directory.',
-    inputSchema: {
-      directory: z.string().describe('Directory path to scan for dead code'),
-      extensions: z.array(z.string()).optional().describe('File extensions to include'),
-      exclude: z.array(z.string()).optional().describe('Directories to exclude'),
-      confidence: z.number().min(0).max(1).optional().describe('Minimum confidence threshold (0-1)'),
-    },
-  },
-  async (args) => {
-    try {
-      const matches = await findDeadCode({
-        directory: args.directory,
-        extensions: args.extensions,
-        exclude: args.exclude,
-        confidence: args.confidence,
-      });
 
-      const deadCodeResults = matches.map(m => ({
-        symbol: m.pattern_name,
-        kind: 'function' as const,
-        file_path: m.file_path || '',
-        line: m.line,
-        reason: m.message,
-        confidence: args.confidence ?? 0.7,
-      }));
-
-      return {
-        content: [{ type: 'text', text: JSON.stringify(deadCodeResults, null, 2) }],
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        content: [{ type: 'text', text: `Error finding dead code: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
 
 // ── Tool: pattern_miner.find_clones ──────────────────────
 server.registerTool(
@@ -146,7 +104,7 @@ server.registerTool(
     try {
       const result = await runCloneDetection({
         fragment: args.fragment,
-        language: args.language as CloneLanguage,
+        language: args.language,
         searchPath: args.searchPath,
         minConfidence: args.minConfidence ?? 0.6,
         maxResults: args.maxResults ?? 20,
@@ -214,7 +172,7 @@ server.registerTool(
   {
     description: 'Get the full catalog of built-in pattern definitions.',
     inputSchema: {
-      category: z.string().optional().describe('Filter by category (e.g., "security", "dead_code")'),
+      category: z.string().optional().describe('Filter by category (e.g., "security", "duplication")'),
       language: z.string().optional().describe('Filter by language (e.g., "typescript", "python")'),
     },
   },

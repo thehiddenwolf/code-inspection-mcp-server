@@ -82,7 +82,7 @@ export async function loadRouterConfig(path?: string): Promise<RouterConfig> {
       const content = await fs.readFile(candidate, 'utf-8');
       const parsed = JSON.parse(content);
       const validated = RouterConfigSchema.parse(parsed);
-      return mergeConfig(validated as RouterConfig);
+      return mergeConfig(validated);
     } catch (error: unknown) {
       // If it's not a file-not-found, capture the error
       if (error instanceof Error && !error.message.includes('ENOENT')) {

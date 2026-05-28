@@ -35,7 +35,6 @@ export const Violation = z.object({
     'solid_lsp',
     'solid_isp',
     'solid_dip',
-    'dead_code',
     'anti_pattern',
     'security',
     'performance',

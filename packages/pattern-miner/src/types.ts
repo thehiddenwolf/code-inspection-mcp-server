@@ -34,9 +34,4 @@ export interface PatternFilter {
   patternIds?: string[];
 }
 
-export interface DeadCodeOptions {
-  directory: string;
-  extensions?: string[];
-  exclude?: string[];
-  confidence?: number;
-}
+

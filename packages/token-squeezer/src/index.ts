@@ -46,7 +46,7 @@ server.registerTool('token_squeezer_squeeze', {
 
     // Validate language
     const validLanguages = LanguageEnum.options;
-    if (!validLanguages.includes(language as typeof validLanguages[number])) {
+    if (!validLanguages.includes(language)) {
       return {
         content: [{
           type: 'text' as const,

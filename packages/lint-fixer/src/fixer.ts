@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { createLogger } from '@hermes/shared';
+import { createLogger, type LanguagePack, LanguagePackRegistry } from '@hermes/shared';
+
 
 const log = createLogger('lint-fixer');
 
@@ -15,63 +16,7 @@ export interface FixResult {
   error?: string;
 }
 
-// Candidate fixers per file extension
-const FIX_COMMANDS: Record<string, string[][]> = {
-  '.js': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.jsx': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.ts': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.tsx': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.mjs': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.cjs': [
-    ['npx', 'eslint', '--fix'],
-    ['npx', 'prettier', '--write']
-  ],
-  '.py': [
-    ['ruff', 'check', '--fix'],
-    ['ruff', 'format'],
-    ['autopep8', '--in-place'],
-    ['black']
-  ],
-  '.go': [
-    ['goimports', '-w'],
-    ['gofmt', '-w']
-  ],
-  '.cs': [
-    ['dotnet', 'format', '--include'],
-    ['dotnet-format']
-  ],
-  '.rs': [
-    ['rustfmt']
-  ],
-  '.java': [
-    ['google-java-format', '-i']
-  ],
-  '.json': [
-    ['npx', 'prettier', '--write']
-  ],
-  '.md': [
-    ['npx', 'prettier', '--write']
-  ],
-  '.html': [['npx', 'prettier', '--write']],
-  '.css': [['npx', 'prettier', '--write']],
-  '.yaml': [['npx', 'prettier', '--write']],
-  '.yml': [['npx', 'prettier', '--write']]
-};
+
 
 function runCommand(cmd: string, args: string[], cwd: string): Promise<{ code: number; stdout: string; stderr: string; notFound: boolean }> {
   return new Promise((resolve) => {
@@ -132,7 +77,11 @@ export async function fixFile(filePath: string, dryRun: boolean = false): Promis
   const ext = path.extname(absolutePath).toLowerCase();
   const originalContent = fs.readFileSync(absolutePath, 'utf8');
 
-  const candidates = FIX_COMMANDS[ext];
+  // Try resolving lint/fix commands from the language pack registry first
+  const registry = LanguagePackRegistry.getInstance();
+  const pack = registry.getLanguagePackByFileExtension(ext);
+  const candidates = pack?.lintFix?.commands;
+
   if (!candidates || candidates.length === 0) {
     return {
       filePath: absolutePath,

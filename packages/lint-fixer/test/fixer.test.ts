@@ -2,11 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fixFile } from '../src/fixer.js';
+import { LanguagePackRegistry, DEFAULT_PACKS } from '@hermes/shared';
 
 describe('Lint Fixer', () => {
   const testFile = path.resolve('./packages/lint-fixer/test/fixture_test.js');
 
   beforeEach(() => {
+    LanguagePackRegistry.setInstance(new LanguagePackRegistry());
+    const registry = LanguagePackRegistry.getInstance();
+    for (const pack of DEFAULT_PACKS) {
+      registry.register(pack);
+    }
     // Write a JS file with some cleanable/formattable code
     fs.writeFileSync(testFile, 'const a = 1; \n\nconst b = 2;\n', 'utf8');
   });

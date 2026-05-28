@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { squeeze } from '../src/squeezer.js';
 import { stripComments } from '../src/reducers/comment-stripper.js';
 import { shrinkImports } from '../src/reducers/import-shrinker.js';
-import { LanguagePackRegistry } from '@hermes/shared';
-import { getLanguagePack, registerDefaultPacks } from '../src/utils.js';
+import { LanguagePackRegistry, DEFAULT_PACKS } from '@hermes/shared';
+import { getLanguagePack } from '../src/utils.js';
 import { estimateTokens } from '../src/token-counter.js';
 import { applyStrategy } from '../src/strategies/strategies.js';
 import { readFileSync } from 'node:fs';
@@ -15,6 +15,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function loadFixture(name: string): string {
   return readFileSync(resolve(__dirname, 'fixtures', name), 'utf-8');
 }
+
+beforeEach(() => {
+  LanguagePackRegistry.setInstance(new LanguagePackRegistry());
+  const registry = LanguagePackRegistry.getInstance();
+  for (const pack of DEFAULT_PACKS) {
+    registry.register(pack);
+  }
+});
 
 // ── Token counter ──────────────────────────────────────────────────────────
 
@@ -215,18 +223,28 @@ describe('regex-strategy-dollar-signs', () => {
 describe('LanguagePackRegistry & Utils', () => {
   let originalRegistryInstance: any;
 
+  beforeEach(() => {
+    LanguagePackRegistry.setInstance(new LanguagePackRegistry());
+    const registry = LanguagePackRegistry.getInstance();
+    for (const pack of DEFAULT_PACKS) {
+      registry.register(pack);
+    }
+  });
+
   beforeAll(() => {
     originalRegistryInstance = LanguagePackRegistry.getInstance();
   });
 
   it('normalizes extensions and maps lookup correctly', () => {
-    const registry = new LanguagePackRegistry();
+    const registry = LanguagePackRegistry.getInstance();
     const testPack = {
       metadata: {
         name: 'rust-test',
         version: '1.0.0',
         fileExtensions: ['.rs', 'RUST'],
       },
+      supportedLanguages: ['.rs', 'RUST'],
+      fileExtensions: ['.rs', 'RUST'],
       parserName: 'tree-sitter-rust',
     };
     registry.register(testPack as any);
@@ -237,8 +255,7 @@ describe('LanguagePackRegistry & Utils', () => {
   });
 
   it('allows overriding default packs', () => {
-    const registry = new LanguagePackRegistry();
-    LanguagePackRegistry.setInstance(registry);
+    const registry = LanguagePackRegistry.getInstance();
 
     const overridePack = {
       metadata: {
@@ -246,14 +263,13 @@ describe('LanguagePackRegistry & Utils', () => {
         version: '2.0.0',
         fileExtensions: ['.ts'],
       },
+      supportedLanguages: ['.ts'],
+      fileExtensions: ['.ts'],
       parserName: 'custom-parser',
     };
     registry.register(overridePack as any);
 
-    registerDefaultPacks();
     expect(registry.lookup('.ts')).toBe(overridePack);
-
-    LanguagePackRegistry.setInstance(originalRegistryInstance);
   });
 
   it('getLanguagePack resolves by extension, name, or casing', () => {

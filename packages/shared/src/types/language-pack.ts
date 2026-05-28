@@ -6,6 +6,9 @@
  * and import handling rules across the MCP toolset.
  */
 
+import type { PatternDefinitionType } from '../schemas/patterns.js';
+
+
 
 
 /**
@@ -168,11 +171,46 @@ export interface SolidEnforcerRules {
   valueObjectPatterns?: RegExp[];
 }
 
+export interface RepographSymbol {
+  name: string;
+  type: 'function' | 'class' | 'interface' | 'type' | 'variable';
+  exported: boolean;
+  line: number;
+  column: number;
+  filePath: string;
+  references?: { filePath: string; line: number }[];
+}
+
+export interface RepographEdge {
+  from: string;
+  to: string;
+  type: 'defines' | 'imports' | 'calls' | 'extends' | 'implements';
+  metadata?: Record<string, unknown>;
+}
+
+export interface RepographImport {
+  source: string;
+  names: string[];
+  defaultName?: string;
+}
+
+export interface RepographPackRules {
+  extractImports: (content: string, filePath: string) => RepographImport[];
+  extractDeclarations: (content: string, filePath: string) => RepographSymbol[];
+  extractRelationships: (content: string, filePath: string) => RepographEdge[];
+}
+
 export interface LanguagePack {
   /** Metadata of the language pack. */
   metadata: LanguagePackMetadata;
+  /** The list of languages and/or file extensions this pack supports (e.g., ['ts', '.tsx', 'typescript']). */
+  supportedLanguages: string[];
+  /** File extensions associated with this language pack at the root level (e.g., ['.ts', '.tsx']). */
+  fileExtensions: string[];
   /** Name of the parser instance/library (e.g., 'tree-sitter-typescript', 'python-ast'). */
   parserName: string;
+  /** Optional custom repograph parser functions for extracting symbols and relationships. */
+  repograph?: RepographPackRules;
   /** Optional set of AST queries to match key structures. */
   astQueries?: AstQueries;
   /** Optional regular expressions for fallback/regex-based processing. */
@@ -183,27 +221,42 @@ export interface LanguagePack {
   squeezer?: SqueezerRules;
   /** Optional custom configuration for SOLID principle checks. */
   solidEnforcer?: SolidEnforcerRules;
+  /** Optional custom configuration for LintFixer. */
+  lintFix?: {
+    commands?: string[][];
+  };
+  /** Optional custom configuration for PatternMiner. */
+  patternMiner?: {
+    patterns?: PatternDefinitionType[];
+  };
 }
 
 
 
+
+// Ensure the global object has the declaration
+declare global {
+  var languagePacks: LanguagePack[] | undefined;
+}
+
+// Helper to get or initialize global.languagePacks
 /**
  * Interface representing a registry for Language Packs.
  */
 export interface ILanguagePackRegistry {
   register(pack: LanguagePack): void;
   lookup(fileExtension: string): LanguagePack | undefined;
+  getLanguagePackByFileExtension(fileExtension: string): LanguagePack | undefined;
   getAll(): LanguagePack[];
 }
 
 /**
  * Registry for managing modular Language Packs.
- * Provides thread-safe / single-threaded registration and lookup of packs by file extension.
+ * Provides instance-based registration and lookup of packs.
  */
 export class LanguagePackRegistry implements ILanguagePackRegistry {
-  protected map = new Map<string, LanguagePack>();
-
   private static instance: LanguagePackRegistry | null = null;
+  private packs: LanguagePack[] = [];
 
   /**
    * Retrieves the global singleton instance of the registry.
@@ -218,7 +271,7 @@ export class LanguagePackRegistry implements ILanguagePackRegistry {
   /**
    * Overrides or sets the global singleton instance (useful for testing or DI).
    */
-  public static setInstance(registry: LanguagePackRegistry): void {
+  public static setInstance(registry: LanguagePackRegistry | null): void {
     LanguagePackRegistry.instance = registry;
   }
 
@@ -226,28 +279,74 @@ export class LanguagePackRegistry implements ILanguagePackRegistry {
    * Registers a Language Pack and maps all its associated file extensions to it.
    */
   public register(pack: LanguagePack): void {
-    if (!pack.metadata?.fileExtensions) {
+    if (!pack.supportedLanguages || pack.supportedLanguages.length === 0) {
       return;
     }
-    for (const ext of pack.metadata.fileExtensions) {
-      const normalized = this.normalizeExtension(ext);
-      this.map.set(normalized, pack);
+    // Avoid duplicate registration (check by metadata.name)
+    const existingIndex = this.packs.findIndex(
+      (p) => p.metadata.name.toLowerCase() === pack.metadata.name.toLowerCase()
+    );
+    if (existingIndex !== -1) {
+      this.packs[existingIndex] = pack;
+    } else {
+      this.packs.push(pack);
     }
   }
 
   /**
-   * Looks up a Language Pack by file extension.
+   * Looks up a Language Pack by language name or file extension.
    */
-  public lookup(fileExtension: string): LanguagePack | undefined {
-    const normalized = this.normalizeExtension(fileExtension);
-    return this.map.get(normalized);
+  public lookup(langOrExt: string): LanguagePack | undefined {
+    const clean = (s: string) => {
+      let cleaned = s.trim().toLowerCase();
+      if (cleaned.startsWith('.')) {
+        cleaned = cleaned.slice(1);
+      }
+      return cleaned;
+    };
+    const queryClean = clean(langOrExt);
+    for (let i = this.packs.length - 1; i >= 0; i--) {
+      const p = this.packs[i];
+      if (p.supportedLanguages?.some((lang) => clean(lang) === queryClean)) {
+        return p;
+      }
+    }
+    // Fallback to name search
+    for (let i = this.packs.length - 1; i >= 0; i--) {
+      const p = this.packs[i];
+      if (clean(p.metadata?.name || '') === queryClean) {
+        return p;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Looks up a Language Pack specifically by one of its supported file extensions.
+   */
+  public getLanguagePackByFileExtension(ext: string): LanguagePack | undefined {
+    const clean = (s: string) => {
+      let cleaned = s.trim().toLowerCase();
+      if (cleaned.startsWith('.')) {
+        cleaned = cleaned.slice(1);
+      }
+      return cleaned;
+    };
+    const extClean = clean(ext);
+    for (let i = this.packs.length - 1; i >= 0; i--) {
+      const p = this.packs[i];
+      if (p.fileExtensions?.some((e) => clean(e) === extClean)) {
+        return p;
+      }
+    }
+    return undefined;
   }
 
   /**
    * Returns all unique registered Language Packs.
    */
   public getAll(): LanguagePack[] {
-    return Array.from(new Set(this.map.values()));
+    return this.packs;
   }
 
   /**

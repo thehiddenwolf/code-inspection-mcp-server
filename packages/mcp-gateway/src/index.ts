@@ -16,7 +16,7 @@ import type {
   McpToolDefinition,
   McpToolCallResult,
 } from '@hermes/shared';
-import { createLogger, PACKAGE_VERSION, LanguagePackRegistry, loadLanguagePacks } from '@hermes/shared';
+import { createLogger, PACKAGE_VERSION, LanguagePackRegistry, loadLanguagePacks, loadConfigAndPacks, type LanguagePack, DEFAULT_PACKS } from '@hermes/shared';
 import * as os from 'node:os';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'node:crypto';
@@ -32,8 +32,8 @@ import { checkFiles } from '@hermes/architecture-shepherd/layer-checker.js';
 import { checkDiff } from '@hermes/architecture-shepherd/diff-checker.js';
 import { GraphEngine } from '@hermes/repograph/graph-engine.js';
 import { FileIndexer } from '@hermes/repograph/file-indexer.js';
-import { createGraphStore } from '@hermes/repograph/graph-store.js';
-import { runScan, findDeadCode } from '@hermes/pattern-miner/scanner.js';
+import { createGraphStore, computeFileHash } from '@hermes/repograph/graph-store.js';
+import { runScan } from '@hermes/pattern-miner/scanner.js';
 import { runCloneDetection } from '@hermes/pattern-miner/clone-detection/clone-scanner.js';
 import { blueprintSearch } from '@hermes/pattern-miner/blueprint-search/engine.js';
 import catalog from '@hermes/pattern-miner/patterns/catalog.js';
@@ -44,6 +44,7 @@ import { checkLiskovSubstitution } from '@hermes/solid-enforcer/rules/liskov.js'
 import { checkInterfaceSegregation } from '@hermes/solid-enforcer/rules/interface-segregation.js';
 import { checkDependencyInversion } from '@hermes/solid-enforcer/rules/dependency-inversion.js';
 import { fixFile } from '@hermes/lint-fixer/fixer.js';
+import { trackReference, getInsights, executeRefactorBatch, getCallHierarchy, getDependencyReport } from '@hermes/repograph/insights-refactor.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Logger
@@ -180,7 +181,7 @@ function findCodeReferences(
       const sqlFuncRe = /CREATE\s+(?:FUNCTION|PROCEDURE)\s+(?:[\w"`]+\.)?([\w"`]+)/i;
 
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         const lineNum = i + 1;
 
         if (isJsTsCs) {
@@ -220,12 +221,12 @@ function findCodeReferences(
         } else if (isSql) {
           const tableMatch = sqlTableRe.exec(line);
           if (tableMatch) {
-            currentClassOrTable = tableMatch[1]!.replace(/['"`]/g, '');
+            currentClassOrTable = tableMatch[1].replace(/['"`]/g, '');
             currentMethod = 'None';
           }
           const funcMatch = sqlFuncRe.exec(line);
           if (funcMatch) {
-            currentMethod = funcMatch[1]!.replace(/['"`]/g, '');
+            currentMethod = funcMatch[1].replace(/['"`]/g, '');
             currentClassOrTable = 'None';
           }
         }
@@ -266,8 +267,8 @@ interface ToolDef extends McpToolDefinition {
 export const TOOLS: ToolDef[] = [
   // ── TokenSqueezer ──────────────────────────────────────────────────────────
   {
-    name: 'token_squeezer_squeeze',
-    description: 'Reduce code context via AST manipulation. Returns a structurally-squeezed skeleton.',
+    name: 'token_squeezer_read_symbols',
+    description: 'Read high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.',
     version: '0.1.0',
     inputSchema: {
       type: 'object',
@@ -298,6 +299,11 @@ export const TOOLS: ToolDef[] = [
               type: 'string',
               enum: ['text', 'json', 'both'],
               default: 'both',
+            },
+            outline: {
+              type: 'boolean',
+              default: false,
+              description: 'Return a clean hierarchical structural outline of the code symbols instead of passive pass placeholders',
             },
           },
         },
@@ -405,22 +411,7 @@ export const TOOLS: ToolDef[] = [
       required: ['paths'],
     },
   },
-  {
-    name: 'pattern_miner_find_dead_code',
-    description: 'Detect dead code — unused exports, unreachable branches, orphaned functions.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        paths: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'File/directory paths to analyze',
-        },
-      },
-      required: ['paths'],
-    },
-  },
+
   {
     name: 'pattern_miner_get_pattern_catalog',
     description: 'Get the full catalog of built-in and custom patterns.',
@@ -448,7 +439,7 @@ export const TOOLS: ToolDef[] = [
               type: 'string',
               enum: [
                 'security', 'performance', 'correctness', 'style',
-                'complexity', 'duplication', 'dead_code', 'architecture', 'best_practice',
+                'complexity', 'duplication', 'architecture', 'best_practice',
               ],
             },
             severity: {
@@ -563,6 +554,107 @@ export const TOOLS: ToolDef[] = [
       },
       required: ['filePath']
     }
+  },
+  // ── Insights & Refactoring ──────────────────────────────────────────────────
+  {
+    name: 'insight_reference_tracker',
+    description: 'Track definitions, usages (references), and documentation mappings for a symbol.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Symbol name to track (class, function, variable, etc.)' },
+        project_path: { type: 'string', description: 'Optional project root path' },
+        include_docs: { type: 'boolean', default: true, description: 'Whether to scan markdown documentation for occurrences' }
+      },
+      required: ['symbol']
+    }
+  },
+  {
+    name: 'get_insights',
+    description: 'Combine multiple definition, usage, reference, or documentation queries into a single result.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbols: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional list of symbols to track'
+        },
+        queries: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['definitions', 'usages', 'references', 'docs'] },
+              symbol: { type: 'string' }
+            },
+            required: ['type', 'symbol']
+          },
+          description: 'Optional list of specific queries to execute'
+        },
+        project_path: { type: 'string', description: 'Optional project root path' },
+        include_docs: { type: 'boolean', default: true, description: 'Whether to scan markdown documentation' }
+      }
+    }
+  },
+  {
+    name: 'refactor_execute_batch',
+    description: 'Atomically execute multiple refactoring operations (rename, replace, move, create, delete) as a transaction.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: { type: 'string', enum: ['rename', 'replace', 'move', 'create', 'delete'] },
+              filePath: { type: 'string', description: 'Target file path' },
+              fromPath: { type: 'string', description: 'Source file path (for move)' },
+              toPath: { type: 'string', description: 'Destination file path (for move)' },
+              oldName: { type: 'string', description: 'Old name for rename' },
+              newName: { type: 'string', description: 'New name for rename' },
+              find: { type: 'string', description: 'Text block to find for replace' },
+              replace: { type: 'string', description: 'Text block to replace with' },
+              content: { type: 'string', description: 'Content for create' }
+            },
+            required: ['type']
+          },
+          description: 'Ordered array of refactoring operations to execute sequentially'
+        },
+        project_path: { type: 'string', description: 'Optional project root path' }
+      },
+      required: ['operations']
+    }
+  },
+  {
+    name: 'repograph_get_call_hierarchy',
+    description: 'Get call hierarchy tree (incoming and outgoing calls) for a symbol.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Name of the function or method' },
+        direction: { type: 'string', enum: ['incoming', 'outgoing', 'both'], default: 'both', description: 'Direction to trace calls' },
+        max_depth: { type: 'integer', default: 3, description: 'Maximum recursion depth' },
+        project_path: { type: 'string', description: 'Optional project root path' }
+      },
+      required: ['symbol']
+    }
+  },
+  {
+    name: 'repograph_get_dependencies',
+    description: 'Analyze codebase imports to list file dependencies and pinpoint circular dependency paths.',
+    version: '0.1.0',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_path: { type: 'string', description: 'Optional project root path' }
+      }
+    }
   }
 ];
 
@@ -595,11 +687,11 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
   switch (name) {
     // ── TokenSqueezer ──
-    case 'token_squeezer_squeeze': {
+    case 'token_squeezer_read_symbols': {
       let code = args?.code ? String(args.code) : '';
       let lang = args?.language ? String(args.language) : '';
       const filePath = args?.filePath ? String(args.filePath) : '';
-      const options = (args?.options as any) ?? {};
+      const options = (args?.options) ?? {};
 
       if (filePath) {
         if (!fs.existsSync(filePath)) {
@@ -676,7 +768,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     case 'repograph_query': {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
-      const scope = (args?.scope as any) ?? 'project';
+      const scope = (args?.scope) ?? 'project';
       const context = getRepoContext(filePath);
       const { graph, indexedFiles } = context;
       const queryResult = graph.query({ query, filePath, scope });
@@ -690,12 +782,24 @@ export async function executeTool(name: string, args: any): Promise<string> {
     case 'repograph_index': {
       const dirPath = String(args?.path ?? '');
       const context = getRepoContext(dirPath);
-      const { graph, indexer, indexedFiles } = context;
+      const { graph, indexer, indexedFiles, store } = context;
       const project = indexer.indexDirectory(dirPath);
       const stats = indexer.applyProjectToGraph(graph, project);
 
       for (const f of project.files) {
         indexedFiles.add(f.filePath);
+        try {
+          const fullPath = path.join(project.rootDir, f.filePath);
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          const hash = computeFileHash(content);
+          store.recordIndexedFile(f.filePath, hash, f.nodes.length);
+          for (const node of f.nodes) {
+            try { store.insertNode(node); } catch { /* duplicate */ }
+          }
+          for (const edge of f.edges) {
+            try { store.insertEdge(edge); } catch { /* duplicate */ }
+          }
+        } catch { /* ignore read/insert errors */ }
       }
 
       resultText = JSON.stringify({
@@ -720,12 +824,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify(scanReport, null, 2);
       break;
     }
-    case 'pattern_miner_find_dead_code': {
-      const paths = (args?.paths as string[]) ?? [];
-      const deadCodeReport = await findDeadCode({ directory: paths[0] });
-      resultText = JSON.stringify(deadCodeReport, null, 2);
-      break;
-    }
+
     case 'pattern_miner_find_clones': {
       const fragment = String(args?.fragment ?? '');
       const language = String(args?.language ?? '');
@@ -747,8 +846,25 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
     case 'pattern_miner_learn_pattern': {
-      const definition = args?.definition as any;
+      const definition = args?.definition;
       customPatterns.set(definition.id, definition);
+
+      const registry = LanguagePackRegistry.getInstance();
+      for (const lang of (definition.languages ?? [])) {
+        const pack = registry.lookup(lang);
+        if (pack) {
+          if (!pack.patternMiner) {
+            pack.patternMiner = {};
+          }
+          if (!pack.patternMiner.patterns) {
+            pack.patternMiner.patterns = [];
+          }
+          if (!pack.patternMiner.patterns.some(p => p.id === definition.id)) {
+            pack.patternMiner.patterns.push(definition);
+          }
+        }
+      }
+
       resultText = JSON.stringify({ status: 'learned', pattern_id: definition.id }, null, 2);
       break;
     }
@@ -805,6 +921,74 @@ export async function executeTool(name: string, args: any): Promise<string> {
       }
       const fixResult = await fixFile(filePath, dryRun);
       resultText = JSON.stringify(fixResult, null, 2);
+      break;
+    }
+
+    case 'insight_reference_tracker': {
+      const symbol = String(args?.symbol ?? '');
+      const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const includeDocs = args?.include_docs !== false;
+
+      if (!symbol) {
+        throw new Error("Parameter 'symbol' is required.");
+      }
+
+      const context = getRepoContext(projectPath);
+      const root = context.currentProjectRoot || lastActiveRoot;
+      const result = trackReference(symbol, root, context.graph, context.indexedFiles, includeDocs, findCodeReferences);
+      resultText = JSON.stringify(result, null, 2);
+      break;
+    }
+
+    case 'get_insights': {
+      const symbols = args?.symbols as string[] | undefined;
+      const queries = args?.queries as any[] | undefined;
+      const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const includeDocs = args?.include_docs !== false;
+
+      const context = getRepoContext(projectPath);
+      const root = context.currentProjectRoot || lastActiveRoot;
+      const result = getInsights({ symbols, queries, include_docs: includeDocs }, root, context.graph, context.indexedFiles, findCodeReferences);
+      resultText = JSON.stringify(result, null, 2);
+      break;
+    }
+
+    case 'refactor_execute_batch': {
+      const operations = args?.operations as any[] ?? [];
+      const projectPath = args?.project_path ? String(args.project_path) : undefined;
+
+      if (!operations || !Array.isArray(operations) || operations.length === 0) {
+        throw new Error("Parameter 'operations' must be a non-empty array.");
+      }
+
+      const context = getRepoContext(projectPath);
+      const root = context.currentProjectRoot || lastActiveRoot;
+      const result = executeRefactorBatch(operations, root);
+      resultText = JSON.stringify(result, null, 2);
+      break;
+    }
+
+    case 'repograph_get_call_hierarchy': {
+      const symbol = String(args?.symbol ?? '');
+      const direction = (args?.direction as 'incoming' | 'outgoing' | 'both') ?? 'both';
+      const maxDepth = Number(args?.max_depth ?? 3);
+      const projectPath = args?.project_path ? String(args.project_path) : undefined;
+
+      if (!symbol) {
+        throw new Error("Parameter 'symbol' is required.");
+      }
+
+      const context = getRepoContext(projectPath);
+      const result = getCallHierarchy(symbol, direction, context.graph, maxDepth);
+      resultText = JSON.stringify(result, null, 2);
+      break;
+    }
+
+    case 'repograph_get_dependencies': {
+      const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const context = getRepoContext(projectPath);
+      const result = getDependencyReport(context.graph);
+      resultText = JSON.stringify(result, null, 2);
       break;
     }
 
@@ -866,13 +1050,18 @@ export function createServer(): Server {
 // Start
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const useSSE = args.includes('--sse');
-  const ssePort = parseInt(process.env.PORT ?? '3100', 10);
-
-  // Auto-discover and load language packs dynamically
+export async function initializeGateway(configPath?: string): Promise<void> {
   const registry = LanguagePackRegistry.getInstance();
+
+  // 0. Register default language packs first
+  for (const pack of DEFAULT_PACKS) {
+    registry.register(pack);
+  }
+
+  // 1. Load dynamic language packs via hermes-config.json (file, npm, git)
+  await loadConfigAndPacks(registry, configPath);
+
+  // 2. Load auto-discover packs from folders
   const pathsToLoad = [
     process.env.HERMES_LANGUAGE_PACKS_DIR,
     path.join(os.homedir(), '.code-inspect-mcp', 'language-packs'),
@@ -885,6 +1074,21 @@ export async function main(): Promise<void> {
       loadLanguagePacks(registry, dir);
     }
   }
+}
+
+export async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const useSSE = args.includes('--sse');
+  const ssePort = parseInt(process.env.PORT ?? '3100', 10);
+
+  // Parse config path if provided via --config
+  let configPath: string | undefined;
+  const configIndex = args.indexOf('--config');
+  if (configIndex !== -1 && args[configIndex + 1]) {
+    configPath = args[configIndex + 1];
+  }
+
+  await initializeGateway(configPath);
 
   const server = createServer();
 

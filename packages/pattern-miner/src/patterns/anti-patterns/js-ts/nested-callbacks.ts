@@ -50,7 +50,7 @@ export async function detectNestedCallbacks(
     // Track nesting depth through indentation
     let callbackDepth = 0;
     let depthStartLine = 0;
-    let inFunctionBody = false;
+    const inFunctionBody = false;
 
     for (let i = 0; i < lines.length; i++) {
       if (commentLines.has(i)) continue;
@@ -109,8 +109,8 @@ export async function detectNestedCallbacks(
           line: i + 1,
           column: 0,
           message: `Callback nesting depth of ${callbackDepth} exceeds max ${maxDepth} — consider refactoring with async/await or Promises`,
-          severity: 'warning' as PatternSeverityType,
-          category: 'complexity' as PatternCategoryType,
+          severity: 'warning',
+          category: 'complexity',
           snippet: context,
         });
       }

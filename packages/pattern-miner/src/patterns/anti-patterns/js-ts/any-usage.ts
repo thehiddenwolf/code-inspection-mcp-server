@@ -63,8 +63,8 @@ export async function detectAnyUsage(
         line: lineNum + 1,
         column,
         message: `TypeScript 'any' type used — consider a more specific type`,
-        severity: 'warning' as PatternSeverityType,
-        category: 'best_practice' as PatternCategoryType,
+        severity: 'warning',
+        category: 'best_practice',
         snippet: context,
       });
     }
@@ -84,8 +84,8 @@ export async function detectAnyUsage(
         line: lineNum + 1,
         column: 0,
         message: `Type assertion 'as any' bypasses type safety`,
-        severity: 'warning' as PatternSeverityType,
-        category: 'best_practice' as PatternCategoryType,
+        severity: 'warning',
+        category: 'best_practice',
         snippet: context,
       });
     }

@@ -35,12 +35,6 @@ function isEndOfMultilineImport(line: string, language: string): boolean {
     return pack.squeezer.importEndRegex.test(line);
   }
   const trimmed = line.trim();
-  if (language === 'javascript' || language === 'typescript' || language === 'jsx' || language === 'tsx') {
-    return /\bfrom\s+['"].*?['"]/.test(line) || trimmed.endsWith(';') || (trimmed.includes('}') && trimmed.includes('from'));
-  }
-  if (language === 'python' || language === 'go') {
-    return trimmed.includes(')');
-  }
   return trimmed.endsWith(';') || trimmed.endsWith(')');
 }
 
@@ -73,11 +67,10 @@ function groupImportsAndCode(code: string, language: string): GroupedCode {
     }
 
     if (importStartRegex.test(line)) {
-      const pack = getLanguagePack(language);
-      const isPyOrGo = pack?.metadata?.name === 'python' || pack?.metadata?.name === 'go' || language === 'python' || language === 'go';
-      const isSingleLine = isPyOrGo
-        ? (!line.includes('(') || line.includes(')'))
-        : (line.includes('from') && (line.includes(';') || line.trimEnd().match(/['"]\s*;?\s*$/)));
+      let isSingleLine = true;
+      if ((line.includes('(') && !line.includes(')')) || (line.includes('{') && !line.includes('}'))) {
+        isSingleLine = false;
+      }
 
       if (isSingleLine) {
         importLines.push(line);
@@ -128,7 +121,7 @@ function shrinkAggressive(code: string, language: string): ShrinkResult {
   const { importLines, nonImportLines } = groupImportsAndCode(code, language);
   const keptImports: string[] = [];
   let removedCount = 0;
-
+ 
   for (const imp of importLines) {
     const wildcard = tryWildcard(imp, language);
     if (wildcard) {
@@ -166,7 +159,7 @@ function tryWildcard(line: string, language: string): string | null {
           if (rule.sanitizeGroupIndex !== undefined) {
             const rawIdentifier = match[rule.sanitizeGroupIndex] || '';
             let moduleName = rawIdentifier.replace(/[^a-zA-Z0-9_$]/g, '_');
-            if (/^[0-9]/.test(moduleName)) {
+            if (/^\d/.test(moduleName)) {
               moduleName = '_' + moduleName;
             }
             replacement = replacement.replaceAll('$moduleName', moduleName);
@@ -178,36 +171,6 @@ function tryWildcard(line: string, language: string): string | null {
     }
     const fallback = pack.squeezer.wildcardFallbackAction || 'keep';
     return fallback === 'keep' ? line : null;
-  }
-
-  if (language === 'javascript' || language === 'typescript' || language === 'jsx' || language === 'tsx') {
-    const namedMatch = line.match(/import\s+\{[\s\S]*?\}\s+from\s+(['"])(.+?)\1/);
-    if (namedMatch) {
-      let moduleName = namedMatch[2].replace(/[^a-zA-Z0-9_$]/g, '_');
-      if (/^[0-9]/.test(moduleName)) {
-        moduleName = '_' + moduleName;
-      }
-      return `import * as ${moduleName} from '${namedMatch[2]}';`;
-    }
-
-    const defaultMatch = line.match(/import\s+\w+\s+from\s+(['"])(.+?)\1/);
-    if (defaultMatch) return line;
-
-    return null;
-  }
-
-  if (language === 'python') {
-    const fromMatch = line.match(/from\s+(\S+)\s+import\s+/);
-    if (fromMatch) {
-      return `import ${fromMatch[1]}`;
-    }
-
-    const multiImport = line.match(/import\s+(\w+),/);
-    if (multiImport) {
-      return `import ${multiImport[1]}`;
-    }
-
-    return line;
   }
 
   return line;

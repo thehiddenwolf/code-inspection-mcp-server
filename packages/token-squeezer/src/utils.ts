@@ -1,33 +1,30 @@
 import { LanguagePackRegistry, type LanguagePack } from '@hermes/shared';
-import { DEFAULT_PACKS } from './default-packs.js';
-
-let defaultsRegistered = false;
 
 /**
- * Register default language packs if they are not already in the registry.
+ * Normalizes language names or extensions for comparison.
  */
-export function registerDefaultPacks(): void {
-  if (defaultsRegistered) return;
-  defaultsRegistered = true;
+function normalizeLang(lang: string): string {
+  return lang.trim().toLowerCase();
+}
+
+export function lookupGlobalPack(extOrName: string): LanguagePack | undefined {
   const registry = LanguagePackRegistry.getInstance();
-  for (const pack of DEFAULT_PACKS) {
-    // Only register if extension not already registered to allow custom overrides
-    for (const ext of pack.metadata.fileExtensions) {
-      if (!registry.lookup(ext)) {
-        registry.register(pack);
-      }
-    }
+  if (extOrName.startsWith('.') || extOrName.length <= 4) {
+    const pack = registry.getLanguagePackByFileExtension(extOrName);
+    if (pack) return pack;
   }
+  return registry.lookup(extOrName);
 }
 
 /**
  * Get language pack associated with a language name or file extension.
  */
 export function getLanguagePack(language: string): LanguagePack | undefined {
-  registerDefaultPacks();
-  const registry = LanguagePackRegistry.getInstance();
+  // 1. First look it up in global packs
+  const pack = lookupGlobalPack(language);
+  if (pack) return pack;
 
-  // Try mapping common language names to extensions
+  // 2. Try mapping common language names to extensions/names
   const langToExt: Record<string, string> = {
     python: '.py',
     go: '.go',
@@ -37,23 +34,24 @@ export function getLanguagePack(language: string): LanguagePack | undefined {
     jsx: '.jsx',
   };
 
-  const ext = langToExt[language.toLowerCase()];
-  if (ext) {
-    const pack = registry.lookup(ext);
-    if (pack) return pack;
+  const mapped = langToExt[language.toLowerCase()];
+  if (mapped) {
+    const packMapped = lookupGlobalPack(mapped);
+    if (packMapped) return packMapped;
   }
 
-  // If not found by extension, do lookup directly by extension if language is an extension
-  if (language.startsWith('.')) {
-    const pack = registry.lookup(language);
-    if (pack) return pack;
+  // 3. Fallback to substring name search in global packs
+  const registry = LanguagePackRegistry.getInstance();
+  const packs = registry.getAll();
+  const normalized = normalizeLang(language);
+  for (let i = packs.length - 1; i >= 0; i--) {
+    const p = packs[i];
+    if (
+      p.metadata?.name?.toLowerCase().includes(normalized) ||
+      p.parserName?.toLowerCase().includes(normalized)
+    ) {
+      return p;
+    }
   }
-
-  // Fallback to name search
-  return registry.getAll().find(
-    p =>
-      p.metadata.name.toLowerCase() === language.toLowerCase() ||
-      p.metadata.name.toLowerCase().includes(language.toLowerCase()) ||
-      p.parserName.toLowerCase().includes(language.toLowerCase())
-  );
+  return undefined;
 }

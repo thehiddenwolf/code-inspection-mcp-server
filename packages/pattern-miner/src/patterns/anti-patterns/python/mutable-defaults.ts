@@ -71,8 +71,8 @@ export async function detectMutableDefaults(
           line: i + 1,
           column: match.index + parenStart,
           message: `Mutable default argument '${paramName}=${defaultValue}' — the ${typeLabel} is shared across all calls. Use None instead.`,
-          severity: 'error' as PatternSeverityType,
-          category: 'correctness' as PatternCategoryType,
+          severity: 'error',
+          category: 'correctness',
           snippet: line.substring(0, 120),
         });
       }
@@ -102,8 +102,8 @@ export async function detectMutableDefaults(
               line: pendingLineNum,
               column: match.index,
               message: `Mutable default argument with ${typeLabel} — shared mutable default across all calls`,
-              severity: 'error' as PatternSeverityType,
-              category: 'correctness' as PatternCategoryType,
+              severity: 'error',
+              category: 'correctness',
               snippet: sigStart.substring(0, 120),
             });
           }

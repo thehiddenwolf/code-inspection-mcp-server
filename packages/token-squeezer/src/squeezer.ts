@@ -17,7 +17,7 @@ import { applyStrategy } from './strategies/strategies.js';
 import { stripComments } from './reducers/comment-stripper.js';
 import { shrinkImports } from './reducers/import-shrinker.js';
 import { createParser } from './wasm-loader.js';
-import { getLanguagePack, registerDefaultPacks } from './utils.js';
+import { getLanguagePack } from './utils.js';
 
 /**
  * Default squeeze options.
@@ -28,10 +28,11 @@ export const DEFAULT_OPTIONS: SqueezeOptions = {
   aggressiveness: 'balanced',
   include_private: false,
   output_format: 'text',
+  outline: false,
 };
 
 /**
- * Squeeze source code — reduce token count while preserving structure.
+ * Main context squeeze orchestrator.
  *
  * @param code       Source code to squeeze
  * @param language   Language identifier ('typescript', 'python', etc.)
@@ -43,9 +44,6 @@ export async function squeeze(
   language: string,
   options?: Partial<SqueezeOptions>,
 ): Promise<SqueezedResult> {
-  // Ensure default language packs are registered
-  registerDefaultPacks();
-
   const opts: SqueezeOptions = { ...DEFAULT_OPTIONS, ...options };
   const originalTokens = estimateTokens(code);
   let squeezed: string;
@@ -196,6 +194,14 @@ async function tryTreeSitterMode(
       }
     }
 
+    if (options.outline) {
+      const outline = generateOutlineFromTree(rootNode, code, functionNodeIds, classNodeIds);
+      return {
+        squeezed: outline,
+        nodeCounts: { original: countAllNodes(rootNode), removed: 0 },
+      };
+    }
+
     collectReplacements(rootNode);
 
     // Apply replacements from back to front to preserve offsets
@@ -241,6 +247,10 @@ function fallbackSqueeze(
   options: SqueezeOptions,
   nodeCounts: { original: number; removed: number },
 ): string {
+  if (options.outline) {
+    return generateFallbackOutline(code, language);
+  }
+
   let result = code;
 
   // Step 1: Strip comments (if not preserved)
@@ -269,4 +279,60 @@ function fallbackSqueeze(
   result = result.replace(/\n{3,}/g, '\n\n').trim();
 
   return result;
+}
+
+function generateOutlineFromTree(
+  rootNode: any,
+  code: string,
+  functionNodeIds: Set<number>,
+  classNodeIds: Set<number>
+): string {
+  const lines: string[] = [];
+
+  function traverse(node: any, depth: number) {
+    if (!node) return;
+    const type = node.type;
+    const isFunction = functionNodeIds.has(node.id) ||
+      type === 'function_declaration' || type === 'function_definition'
+      || type === 'method_definition' || type === 'arrow_function';
+    const isClass = classNodeIds.has(node.id) ||
+      type === 'class_declaration' || type === 'class_definition';
+    
+    const startLine = node.startPosition.row + 1;
+
+    if (isClass) {
+      const nodeText = code.slice(node.startIndex, node.endIndex);
+      const firstLine = nodeText.split('\n')[0].trim();
+      lines.push(`${'  '.repeat(depth)}- Class: ${firstLine} (line ${startLine})`);
+      for (let i = 0; i < node.childCount; i++) {
+        traverse(node.child(i), depth + 1);
+      }
+    } else if (isFunction) {
+      const nodeText = code.slice(node.startIndex, node.endIndex);
+      const firstLine = nodeText.split('\n')[0].trim();
+      lines.push(`${'  '.repeat(depth)}- Function/Method: ${firstLine} (line ${startLine})`);
+      for (let i = 0; i < node.childCount; i++) {
+        traverse(node.child(i), depth + 1);
+      }
+    } else {
+      for (let i = 0; i < node.childCount; i++) {
+        traverse(node.child(i), depth);
+      }
+    }
+  }
+
+  traverse(rootNode, 0);
+  return lines.length > 0 ? lines.join('\n') : '(No classes or functions found in file)';
+}
+
+function generateFallbackOutline(code: string, language: string): string {
+  const pack = getLanguagePack(language);
+  if (pack?.repograph?.extractDeclarations) {
+    const decls = pack.repograph.extractDeclarations(code, 'file');
+    // Sort declarations by line number
+    const sorted = [...decls].sort((a: any, b: any) => a.line - b.line);
+    const lines = sorted.map((d: any) => `- ${d.type.charAt(0).toUpperCase() + d.type.slice(1)}: ${d.name} (line ${d.line})`);
+    return lines.length > 0 ? lines.join('\n') : '(No declarations found in file)';
+  }
+  return '(Outline mode not supported for this language pack in fallback mode)';
 }

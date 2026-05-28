@@ -471,8 +471,8 @@ export async function detectCodeClones(
       line: clone.startLineA,
       end_line: clone.endLineA,
       message: `Clone of ${clone.fileB}:${clone.startLineB}-${clone.endLineB} (${clone.tokenCount} tokens)`,
-      severity: 'warning' as PatternSeverityType,
-      category: 'duplication' as PatternCategoryType,
+      severity: 'warning',
+      category: 'duplication',
       snippet: clone.snippet,
     });
 
@@ -483,8 +483,8 @@ export async function detectCodeClones(
       line: clone.startLineB,
       end_line: clone.endLineB,
       message: `Clone of ${clone.fileA}:${clone.startLineA}-${clone.endLineA} (${clone.tokenCount} tokens)`,
-      severity: 'warning' as PatternSeverityType,
-      category: 'duplication' as PatternCategoryType,
+      severity: 'warning',
+      category: 'duplication',
       snippet: clone.snippet,
     });
   }

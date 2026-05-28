@@ -1,4 +1,4 @@
-import { LanguagePackRegistry } from '@hermes/shared';
+import { LanguagePackRegistry, type LanguagePack } from '@hermes/shared';
 import * as path from 'node:path';
 
 const DEFAULT_CONCERN_PATTERNS = {
@@ -24,7 +24,8 @@ const DEFAULT_NOT_IMPLEMENTED_PATTERNS = [
 
 export function getEnforcerRules(file: string) {
   const ext = path.extname(file);
-  const pack = LanguagePackRegistry.getInstance().lookup(ext);
+  const registry = LanguagePackRegistry.getInstance();
+  const pack = registry.lookup(ext);
   const solid = pack?.solidEnforcer;
 
   return {

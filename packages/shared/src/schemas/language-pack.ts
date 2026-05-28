@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PatternDefinition } from './patterns.js';
 
 export const LanguagePackMetadataSchema = z.object({
   name: z.string().min(1),
@@ -34,28 +35,26 @@ export const HandlingRulesSchema = z.object({
   import: ImportHandlingRuleSchema.optional(),
 });
 
-// Schema for raw JSON validation of Regex patterns
-export const JsonRegexPatternsSchema = z.object({
-  commentDetection: z.string().min(1),
-  importExtraction: z.string().optional(),
-  exportExtraction: z.string().optional(),
+export const RegexPatternsSchema = z.object({
+  commentDetection: z.instanceof(RegExp),
+  importExtraction: z.instanceof(RegExp).optional(),
+  exportExtraction: z.instanceof(RegExp).optional(),
 });
 
-// Schema for raw JSON validation of TokenSqueezer custom rules
-export const JsonSqueezerRulesSchema = z.object({
+export const SqueezerRulesSchema = z.object({
   bodyPlaceholder: z.string().optional(),
   bodyPatterns: z.array(z.object({
-    pattern: z.string().min(1),
+    pattern: z.instanceof(RegExp),
     replacement: z.string(),
   })).optional(),
   privateBodyPatterns: z.array(z.object({
-    pattern: z.string().min(1),
+    pattern: z.instanceof(RegExp),
     replacement: z.string(),
   })).optional(),
-  importStartRegex: z.string().optional(),
-  importEndRegex: z.string().optional(),
+  importStartRegex: z.instanceof(RegExp).optional(),
+  importEndRegex: z.instanceof(RegExp).optional(),
   wildcardRules: z.array(z.object({
-    pattern: z.string().min(1),
+    pattern: z.instanceof(RegExp),
     replacement: z.string().optional(),
     action: z.enum(['replace', 'keep', 'remove']),
     sanitizeGroupIndex: z.number().optional(),
@@ -63,27 +62,44 @@ export const JsonSqueezerRulesSchema = z.object({
   wildcardFallbackAction: z.enum(['keep', 'remove']).optional(),
 });
 
-// Schema for raw JSON validation of SOLID Enforcer custom rules
-export const JsonSolidEnforcerRulesSchema = z.object({
-  classRegex: z.string().optional(),
-  derivedClassRegex: z.string().optional(),
-  interfaceRegex: z.string().optional(),
-  concernPatterns: z.record(z.string(), z.array(z.string())).optional(),
-  notImplementedPatterns: z.array(z.string()).optional(),
-  newInstantiationRegex: z.string().optional(),
-  staticCallRegex: z.string().optional(),
-  valueObjectPatterns: z.array(z.string()).optional(),
+export const SolidEnforcerRulesSchema = z.object({
+  classRegex: z.instanceof(RegExp).optional(),
+  derivedClassRegex: z.instanceof(RegExp).optional(),
+  interfaceRegex: z.instanceof(RegExp).optional(),
+  concernPatterns: z.record(z.string(), z.array(z.instanceof(RegExp))).optional(),
+  notImplementedPatterns: z.array(z.instanceof(RegExp)).optional(),
+  newInstantiationRegex: z.instanceof(RegExp).optional(),
+  staticCallRegex: z.instanceof(RegExp).optional(),
+  valueObjectPatterns: z.array(z.instanceof(RegExp)).optional(),
 });
 
-// Schema for raw JSON validation of the LanguagePack
-export const JsonLanguagePackSchema = z.object({
+export const LintFixRulesSchema = z.object({
+  commands: z.array(z.array(z.string())).optional(),
+});
+
+export const PatternMinerRulesSchema = z.object({
+  patterns: z.array(PatternDefinition).optional(),
+});
+
+export const RepographRulesSchema = z.object({
+  extractImports: z.function(),
+  extractDeclarations: z.function(),
+  extractRelationships: z.function(),
+});
+
+export const LanguagePackSchema = z.object({
   metadata: LanguagePackMetadataSchema,
+  supportedLanguages: z.array(z.string().min(1)),
+  fileExtensions: z.array(z.string().min(1)).optional(),
   parserName: z.string().min(1),
+  repograph: RepographRulesSchema.optional(),
   astQueries: AstQueriesSchema.optional(),
-  regexPatterns: JsonRegexPatternsSchema.optional(),
+  regexPatterns: RegexPatternsSchema.optional(),
   rules: HandlingRulesSchema.optional(),
-  squeezer: JsonSqueezerRulesSchema.optional(),
-  solidEnforcer: JsonSolidEnforcerRulesSchema.optional(),
+  squeezer: SqueezerRulesSchema.optional(),
+  solidEnforcer: SolidEnforcerRulesSchema.optional(),
+  lintFix: LintFixRulesSchema.optional(),
+  patternMiner: PatternMinerRulesSchema.optional(),
 });
 
-export type JsonLanguagePack = z.infer<typeof JsonLanguagePackSchema>;
+

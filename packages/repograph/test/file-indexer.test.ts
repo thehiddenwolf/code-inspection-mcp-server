@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { LanguagePackRegistry, DEFAULT_PACKS } from '@hermes/shared';
 import { FileIndexer } from '../src/file-indexer.js';
 import { GraphEngine } from '../src/graph-engine.js';
 import { readFileSync } from 'node:fs';
@@ -18,6 +19,11 @@ describe('FileIndexer', () => {
   let indexer: FileIndexer;
 
   beforeEach(() => {
+    LanguagePackRegistry.setInstance(new LanguagePackRegistry());
+    const registry = LanguagePackRegistry.getInstance();
+    for (const pack of DEFAULT_PACKS) {
+      registry.register(pack);
+    }
     indexer = new FileIndexer();
   });
 
@@ -360,6 +366,135 @@ describe('FileIndexer', () => {
         const extendsEdges = result.edges.filter((e) => e.type === 'extends');
         expect(extendsEdges.some((e) => e.from === 'sym:Users@/test/schema.sql' && e.to === 'sym:Profiles')).toBe(true);
         expect(extendsEdges.some((e) => e.from === 'sym:UserProfiles@/test/schema.sql' && e.to === 'sym:Users')).toBe(true);
+      });
+    });
+
+    describe('Go Support', () => {
+      it('extracts imports from Go code', () => {
+        const content = `
+          package main
+          import "fmt"
+          import (
+              "os"
+              "net/http"
+          )
+        `;
+        const result = indexer.indexFile('/test/main.go', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        const sources = importEdges.map((e) => e.to);
+
+        expect(sources).toContain('file:fmt');
+        expect(sources).toContain('file:os');
+        expect(sources).toContain('file:net/http');
+      });
+
+      it('extracts declarations and embedding relationships from Go code', () => {
+        const content = `
+          package main
+          type Service struct {
+              EmbeddedService
+              Name string
+          }
+          func (s *Service) Start() {}
+          func globalHelper() {}
+        `;
+        const result = indexer.indexFile('/test/main.go', content);
+
+        const structSym = result.symbols.find((s) => s.name === 'Service');
+        expect(structSym).toBeDefined();
+        expect(structSym!.type).toBe('class');
+        expect(structSym!.exported).toBe(true);
+
+        const methodSym = result.symbols.find((s) => s.name === 'Start');
+        expect(methodSym).toBeDefined();
+        expect(methodSym!.type).toBe('function');
+        expect(methodSym!.exported).toBe(true);
+
+        const helperSym = result.symbols.find((s) => s.name === 'globalHelper');
+        expect(helperSym).toBeDefined();
+        expect(helperSym!.type).toBe('function');
+        expect(helperSym!.exported).toBe(false);
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:Service@/test/main.go' && e.to === 'sym:EmbeddedService')).toBe(true);
+      });
+    });
+
+    describe('Java Support', () => {
+      it('extracts imports and declarations from Java code', () => {
+        const content = `
+          import java.util.List;
+          import static java.lang.Math.max;
+
+          public class Processor {
+              public void processData() {}
+          }
+        `;
+        const result = indexer.indexFile('/test/Processor.java', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        expect(importEdges.map((e) => e.to)).toContain('file:java.util.List');
+        expect(importEdges.map((e) => e.to)).toContain('file:java.lang.Math.max');
+
+        const classSym = result.symbols.find((s) => s.name === 'Processor');
+        expect(classSym).toBeDefined();
+        expect(classSym!.type).toBe('class');
+
+        const methodSym = result.symbols.find((s) => s.name === 'processData');
+        expect(methodSym).toBeDefined();
+        expect(methodSym!.type).toBe('function');
+      });
+
+      it('extracts extends and implements relationships from Java inheritance', () => {
+        const content = `
+          public class Dog extends Animal implements Runnable, Serializable {
+          }
+        `;
+        const result = indexer.indexFile('/test/Dog.java', content);
+
+        const extendsEdges = result.edges.filter((e) => e.type === 'extends');
+        expect(extendsEdges.some((e) => e.from === 'sym:Dog@/test/Dog.java' && e.to === 'sym:Animal')).toBe(true);
+
+        const implementsEdges = result.edges.filter((e) => e.type === 'implements');
+        expect(implementsEdges.some((e) => e.from === 'sym:Dog@/test/Dog.java' && e.to === 'sym:Runnable')).toBe(true);
+        expect(implementsEdges.some((e) => e.from === 'sym:Dog@/test/Dog.java' && e.to === 'sym:Serializable')).toBe(true);
+      });
+    });
+
+    describe('Rust Support', () => {
+      it('extracts imports and declarations from Rust code', () => {
+        const content = `
+          use std::collections::HashMap;
+          use std::io::{self, Read};
+
+          pub struct Worker {
+              name: String,
+          }
+          fn do_work() {}
+        `;
+        const result = indexer.indexFile('/test/lib.rs', content);
+        const importEdges = result.edges.filter((e) => e.type === 'imports');
+        const sources = importEdges.map((e) => e.to);
+        expect(sources).toContain('file:std::collections::HashMap');
+        expect(sources).toContain('file:std::io');
+
+        const structSym = result.symbols.find((s) => s.name === 'Worker');
+        expect(structSym).toBeDefined();
+        expect(structSym!.type).toBe('class');
+
+        const fnSym = result.symbols.find((s) => s.name === 'do_work');
+        expect(fnSym).toBeDefined();
+        expect(fnSym!.type).toBe('function');
+      });
+
+      it('extracts implements relationships from Rust impl block', () => {
+        const content = `
+          struct Rectangle;
+          impl Shape for Rectangle {}
+        `;
+        const result = indexer.indexFile('/test/lib.rs', content);
+
+        const implementsEdges = result.edges.filter((e) => e.type === 'implements');
+        expect(implementsEdges.some((e) => e.from === 'sym:Rectangle@/test/lib.rs' && e.to === 'sym:Shape')).toBe(true);
       });
     });
   });

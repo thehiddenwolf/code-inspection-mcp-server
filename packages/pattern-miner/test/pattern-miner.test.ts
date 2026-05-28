@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { runScan, findDeadCode } from '../src/scanner.js';
+import { runScan } from '../src/scanner.js';
 import { generateMarkdownReport, generateJsonReport } from '../src/reporter.js';
 import catalog, { getPatternById } from '../src/patterns/catalog.js';
 import type { ScanReport, Finding } from '../src/types.js';
@@ -129,33 +129,7 @@ describe('PatternMiner', () => {
     });
   });
 
-  // ── find_dead_code tool ────────────────────────────────────
 
-  describe('findDeadCode', () => {
-    it('finds unused exports in sample file', async () => {
-      const matches = await findDeadCode({
-        directory: FIXTURES_DIR,
-        extensions: ['.ts'],
-        exclude: [],
-        confidence: 0.5,
-      });
-
-      const unusedExportMatches = matches.filter(m =>
-        m.pattern_id === 'unused-exports' &&
-        m.file_path.includes('sample-with-issues'),
-      );
-
-      console.log(`Dead code matches: ${matches.length}`);
-      console.log(`  Unused export matches: ${unusedExportMatches.length}`);
-
-      // sample-with-issues.ts has unusedExportFunction and UNUSED_CONSTANT
-      // But detection depends on seeing them as exports with no importers
-      // In a single-file scan, any export is "unused" since there's no importer
-      // More importantly, the API returns results without error
-      expect(matches).toBeDefined();
-      expect(Array.isArray(matches)).toBe(true);
-    });
-  });
 
   // ── get_pattern_catalog ────────────────────────────────────
 
@@ -182,7 +156,7 @@ describe('PatternMiner', () => {
     it('contains patterns across all required categories', () => {
       const categories = new Set(catalog.map(e => e.definition.category));
       expect(categories.has('security')).toBe(true);
-      expect(categories.has('dead_code')).toBe(true);
+      expect(categories.has('duplication')).toBe(true);
       expect(categories.has('architecture')).toBe(true);
       expect(categories.has('style')).toBe(true);
       expect(categories.has('complexity')).toBe(true);

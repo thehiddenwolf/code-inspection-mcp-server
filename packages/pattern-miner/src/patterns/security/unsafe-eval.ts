@@ -89,8 +89,8 @@ export async function detectUnsafeEval(
           line: lineNum + 1,
           column: match.index,
           message: `Usage of '${label}' allows arbitrary code execution — avoid or sandbox`,
-          severity: 'critical' as PatternSeverityType,
-          category: 'security' as PatternCategoryType,
+          severity: 'critical',
+          category: 'security',
           snippet: context,
         });
       }
