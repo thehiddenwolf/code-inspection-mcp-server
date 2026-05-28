@@ -469,12 +469,12 @@ describe('ServerStartupEvent', () => {
     const result = ServerStartupEvent.parse({
       event: 'server.startup',
       metadata: {
-        server_name: 'hermes-mcp-gateway',
+        server_name: 'code-inspection-mcp-gateway',
         timestamp: '2026-05-27T00:00:00Z',
         transport: 'stdio',
       },
     });
-    expect(result.metadata.server_name).toBe('hermes-mcp-gateway');
+    expect(result.metadata.server_name).toBe('code-inspection-mcp-gateway');
   });
 
   it('rejects missing server_name', () => {

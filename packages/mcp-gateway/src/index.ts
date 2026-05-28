@@ -49,7 +49,7 @@ import { fixFile } from '@hermes/lint-fixer/fixer.js';
 // Logger
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const log = createLogger('hermes-mcp-gateway');
+const log = createLogger('code-inspection-mcp-gateway');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Gateway Global State
