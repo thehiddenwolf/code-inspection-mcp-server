@@ -42,7 +42,7 @@ The package already depends on `better-sqlite3`. The existing `DbInterface`/`Jso
 ## 3. File Location
 
 ```
-{project_root}/.hermes/knowledge_graph/
+{project_root}/.code-inspect-mcp/knowledge_graph/
 ├── repograph.db          ← SQLite database
 ├── repograph.db-wal      ← SQLite WAL (auto)
 ├── repograph.db-shm      ← SQLite SHM (auto)
@@ -50,7 +50,7 @@ The package already depends on `better-sqlite3`. The existing `DbInterface`/`Jso
 ```
 
 **Rationale:**
-- `.hermes/` is the canonical Hermes data directory per the monorepo convention
+- `.code-inspect-mcp/` is the canonical Hermes data directory per the monorepo convention
 - `knowledge_graph/` namespace isolates graph data from other tool state
 - The `.gitignore`-friendly location means the graph is a local cache, not committed
 - WAL/SHM files are auto-managed by SQLite

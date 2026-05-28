@@ -3,7 +3,7 @@
 # ── Variables ───────────────────────────────────────────────────────────────
 NPM ?= npm
 TSC ?= npx tsc
-PYTHON ?= /home/kerwin/.hermes/hermes-agent/venv/bin/python
+PYTHON ?= /home/kerwin/.code-inspect-mcp/hermes-agent/venv/bin/python
 
 TS_FILES ?= 'packages/*/src/**/*.ts'
 TEST_FILES ?= 'packages/*/test/**/*.ts'

@@ -41,7 +41,7 @@ The tools don't run after-the-fact. They intercept the agentic workflow at **spe
 
 ### 2.3 Standalone MCP Server
 
-The blueprint specifies a **single standalone MCP server process** that registers tools via JSON-RPC. It lives alongside the code repository, reads configuration from `.hermes/mcp_config.json`, and communicates with the agent via the standard MCP protocol (tools/list, tools/call). No external vector databases, no separate service mesh, no cloud dependencies.
+The blueprint specifies a **single standalone MCP server process** that registers tools via JSON-RPC. It lives alongside the code repository, reads configuration from `.code-inspect-mcp/mcp_config.json`, and communicates with the agent via the standard MCP protocol (tools/list, tools/call). No external vector databases, no separate service mesh, no cloud dependencies.
 
 ### 2.4 Token-as-Cost Mental Model
 
@@ -96,7 +96,7 @@ Token usage is treated as the primary cost currency. Every architectural decisio
 **Technical Design:**
 - **Semgrep** for structural pattern matching — searches for AST patterns, not just text
 - **PMD's CPD (Copy-Paste Detector)** for token-based duplication detection — Java runtime dependency, so a pure-Python fallback using token-hash comparison is specified
-- **Semgrep rule caching** at `.hermes/semgrep_rules/` for performance
+- **Semgrep rule caching** at `.code-inspect-mcp/semgrep_rules/` for performance
 - **Novelty scoring** — compares the plan against existing code to produce a reuse-vs-new score
 
 **Companion Doc Notes:** The Blueprint Scout spec frames this as a *predictive* tool. It doesn't wait for code to be written and then check for duplication — it intervenes at the plan stage and says "don't write this, use the existing thing." This is the key differentiator from standard linting/CI tools.
@@ -127,10 +127,10 @@ Token usage is treated as the primary cost currency. Every architectural decisio
 
 **The Problem:** Agents lack persistent, state-aware memory of the codebase. Each turn starts fresh, triggering repeated global searches and re-indexing. The agent doesn't "remember" where things are between turns.
 
-**The Solution:** A lightweight, file-based knowledge graph stored *inside* the repository itself (in `.hermes/`). The MCP server is the exclusive read/write gateway. Git hooks or file watchers update the graph incrementally when files change.
+**The Solution:** A lightweight, file-based knowledge graph stored *inside* the repository itself (in `.code-inspect-mcp/`). The MCP server is the exclusive read/write gateway. Git hooks or file watchers update the graph incrementally when files change.
 
 **Storage Design:**
-- **Format:** SQLite database and/or structured Markdown definitions in `.hermes/`
+- **Format:** SQLite database and/or structured Markdown definitions in `.code-inspect-mcp/`
 - **Schema:** Entities (files, classes, functions, modules), relations (imports, calls, inherits, implements), intents (tags mapping concepts to code locations)
 - **Sync mechanism:** Incremental diff tracking — only changed branches of the graph are updated on file edits, not full re-indexing
 
@@ -239,7 +239,7 @@ The `TOOL_SPECS.md` expands to **16 concrete MCP tools** across all pillars plus
 
 **Strategy:** Maintain a codebase knowledge graph that persists across agent turns.
 
-**Mechanism:** SQLite-based entity-relation graph stored in `.hermes/`, updated by git hooks, queried by the agent instead of running repeated `grep`/`find`/`search_files` operations.
+**Mechanism:** SQLite-based entity-relation graph stored in `.code-inspect-mcp/`, updated by git hooks, queried by the agent instead of running repeated `grep`/`find`/`search_files` operations.
 
 **Expected Savings:** Eliminates the per-turn "where is X?" search overhead. In a multi-turn session, global file searches can consume 500-2,000 tokens per query. Eliminating 5-10 such queries per session saves significant context.
 
@@ -348,7 +348,7 @@ The `TOOL_SPECS.md` expands to **16 concrete MCP tools** across all pillars plus
 
 ### 6.5 Semgrep & Pattern Matching
 
-10. **How to maintain and curate the Semgrep rule set?** The blueprint specifies caching rules at `.hermes/semgrep_rules/`, but who writes and maintains these rules? Community Semgrep rules cover security patterns, not "this is boilerplate the agent shouldn't rewrite." Custom rules are needed — what's the maintenance burden?
+10. **How to maintain and curate the Semgrep rule set?** The blueprint specifies caching rules at `.code-inspect-mcp/semgrep_rules/`, but who writes and maintains these rules? Community Semgrep rules cover security patterns, not "this is boilerplate the agent shouldn't rewrite." Custom rules are needed — what's the maintenance burden?
 
 11. **Is PMD CPD necessary, or is pure-Python token-hash comparison sufficient?** The blueprint suggests PMD CPD as primary with Python fallback. If the Python fallback is good enough, removing the Java dependency simplifies deployment significantly.
 

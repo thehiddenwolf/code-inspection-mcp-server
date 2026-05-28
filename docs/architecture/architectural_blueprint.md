@@ -728,7 +728,7 @@ The CLI (`packages/cli/src/index.ts`) is built on Commander and:
 
 ## 8. Configuration
 
-Configuration is managed via `~/.hermes/mcp_config.json` (per-user) or `./.hermes/mcp_config.json` (per-project):
+Configuration is managed via `~/.code-inspect-mcp/mcp_config.json` (per-user) or `./.code-inspect-mcp/mcp_config.json` (per-project):
 
 ```json
 {
@@ -741,12 +741,12 @@ Configuration is managed via `~/.hermes/mcp_config.json` (per-user) or `./.herme
     "manifest_path": "ARCHITECTURE.md"
   },
   "pattern_miner": {
-    "custom_patterns_path": ".hermes/patterns/",
+    "custom_patterns_path": ".code-inspect-mcp/patterns/",
     "max_file_size_kb": 500
   },
   "repograph": {
     "storage": "sqlite",
-    "path": ".hermes/repograph.db",
+    "path": ".code-inspect-mcp/repograph.db",
     "auto_sync": true
   },
   "task_router": {

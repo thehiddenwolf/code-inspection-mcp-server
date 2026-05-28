@@ -597,9 +597,9 @@ Eliminate repeated global searches across agent turns by maintaining a lightweig
 
 ### 4.2 Storage
 
-- **Primary format:** SQLite (`.hermes/repograph.db`) — fast relational queries, no external deps
-- **Secondary format:** JSON sidecar (`.hermes/repograph.json`) — for git diff visibility and manual inspection
-- **Location:** Repository root inside a `.hermes/` directory (git-ignorable via `.gitignore`)
+- **Primary format:** SQLite (`.code-inspect-mcp/repograph.db`) — fast relational queries, no external deps
+- **Secondary format:** JSON sidecar (`.code-inspect-mcp/repograph.json`) — for git diff visibility and manual inspection
+- **Location:** Repository root inside a `.code-inspect-mcp/` directory (git-ignorable via `.gitignore`)
 - **Schema:** Entity → Relationship → Property graph model
 
 ### 4.3 Database Schema (SQLite)
@@ -1171,13 +1171,13 @@ All tools should return standardized error structures:
 
 ### 6.3 Configuration File
 
-The MCP server should read from `.hermes/mcp_config.json`:
+The MCP server should read from `.code-inspect-mcp/mcp_config.json`:
 
 ```json
 {
   "repograph": {
     "storage": "sqlite",
-    "path": ".hermes/repograph.db",
+    "path": ".code-inspect-mcp/repograph.db",
     "auto_sync": true,
     "json_sidecar": true
   },
@@ -1187,7 +1187,7 @@ The MCP server should read from `.hermes/mcp_config.json`:
     "default_max_depth": 10
   },
   "blueprint_scout": {
-    "semgrep_rules_path": ".hermes/semgrep_rules/",
+    "semgrep_rules_path": ".code-inspect-mcp/semgrep_rules/",
     "min_similarity": 0.7,
     "cache_fingerprints": true
   },

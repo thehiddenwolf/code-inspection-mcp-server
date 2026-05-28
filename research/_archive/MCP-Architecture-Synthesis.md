@@ -113,7 +113,7 @@ Hermes (planner)
 | Blueprint Element | Status | Notes |
 |-------------------|--------|-------|
 | PMD CPD integration | Listed as optional | Java runtime dependency — fallback to pure-Python token comparison suggested |
-| Semgrep rule caching | Specified | Use `.hermes/semgrep_rules/` path in config |
+| Semgrep rule caching | Specified | Use `.code-inspect-mcp/semgrep_rules/` path in config |
 | AST cache by file hash | Specified | In Context-Slasher implementation notes |
 | Novelty scoring via Blueprint Scout comparison | Specified | In Task Router impl notes |
 
@@ -165,7 +165,7 @@ Based on bridging the sources:
 
 3. **Deterministic over LLM-based** — The entire architecture rejects LLM-driven summarization in favor of AST-based structural analysis. LLMs are used only where they're irreplaceable (code generation, natural language intent parsing).
 
-4. **Config in `.hermes/mcp_config.json`** — All tool config lives in the repo for portability and CI compatibility.
+4. **Config in `.code-inspect-mcp/mcp_config.json`** — All tool config lives in the repo for portability and CI compatibility.
 
 5. **JSON-RPC error codes** — Standardized error structure with -32000 to -32003 range, matching MCP protocol conventions.
 

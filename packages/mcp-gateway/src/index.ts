@@ -59,7 +59,7 @@ const manifestStore = new Map<string, Manifest>();
 const customPatterns = new Map<string, any>();
 
 // Initialize RepoGraph components
-const store = createGraphStore('.code-inpect-mcp/reprograph.db');
+const store = createGraphStore('.code-inspect-mcp/repograph.db');
 const graph = new GraphEngine();
 const indexer = new FileIndexer(store);
 
@@ -686,7 +686,7 @@ export async function main(): Promise<void> {
   const registry = LanguagePackRegistry.getInstance();
   const pathsToLoad = [
     process.env.HERMES_LANGUAGE_PACKS_DIR,
-    path.join(os.homedir(), '.hermes', 'language-packs'),
+    path.join(os.homedir(), '.code-inspect-mcp', 'language-packs'),
     path.join(process.cwd(), 'config', 'language-packs'),
   ].filter(Boolean) as string[];
 

@@ -39,7 +39,7 @@ Key design decisions already locked in the toolset:
 - **SQLite over external vector DB** — no pgvector/Pinecone dependency
 - **Tree-sitter over LSP as primary parser** — faster, deterministic, no language server processes
 - **Deterministic over LLM-based** — AST analysis, not summarization
-- **Config in `.hermes/mcp_config.json`** — portable, CI-compatible
+- **Config in `.code-inspect-mcp/mcp_config.json`** — portable, CI-compatible
 
 ---
 
@@ -241,7 +241,7 @@ The remaining 20% — the intent annotation layer — is the unique contribution
 **Implementation sketch:**
 1. `codebase-memory-mcp` installed as a sidecar process
 2. Hermes MCP adapter wraps its 14 tools under RepoGraph namespace
-3. Companion SQLite DB (`~/.hermes/repo_intents.db`) stores intent tags, linked by file path + symbol name
+3. Companion SQLite DB (`~/.code-inspect-mcp/repo_intents.db`) stores intent tags, linked by file path + symbol name
 4. `repograph_register_intent` writes to companion DB
 5. `repograph_query` chains: Codebase-Memory query → companion DB tag lookup → merged response
 

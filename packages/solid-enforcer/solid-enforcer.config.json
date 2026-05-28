@@ -10,7 +10,7 @@
     "node_modules",
     "dist",
     ".git",
-    ".hermes",
+    ".code-inspect-mcp",
     "coverage",
     "test",
     "fixtures"

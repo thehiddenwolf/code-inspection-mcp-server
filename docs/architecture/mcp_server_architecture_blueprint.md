@@ -155,7 +155,7 @@ Strict JSON-RPC 2.0 error handling is implemented across the gateway:
 
 ## 6. Deployment Considerations
 
-- **Configuration:** Managed via `.hermes/mcp_config.json` containing default paths, model routing tables, complexity thresholds, and exclusions.
+- **Configuration:** Managed via `.code-inspect-mcp/mcp_config.json` containing default paths, model routing tables, complexity thresholds, and exclusions.
 - **Service Management:** The gateway is designed to run either as a user-level background daemon (`systemd --user`) or under `pm2`.
 - **Docker Compose:** Provided for team developer deployments to bundle Postgres, Redis, and the MCP Gateway for shared caching.
 

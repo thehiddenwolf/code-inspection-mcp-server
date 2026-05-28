@@ -173,7 +173,7 @@ Load ARCHITECTURE.md manifests, enforce layer boundaries and dependency rules ag
 | `packages/architecture-shepherd/src/rules/file-size-rule.ts` | Max line count per file |
 | `packages/architecture-shepherd/src/rules/naming-rule.ts` | Naming convention enforcement |
 | `packages/architecture-shepherd/src/suggest.ts` | Analyze codebase → suggest ARCHITECTURE.md structure |
-| `packages/architecture-shepherd/src/config.ts` | Load `.hermes/mcp_config.json` for thresholds |
+| `packages/architecture-shepherd/src/config.ts` | Load `.code-inspect-mcp/mcp_config.json` for thresholds |
 | `packages/architecture-shepherd/src/types.ts` | Manifest, Violation, Rule types |
 | `packages/architecture-shepherd/test/fixtures/` | Sample manifests + codebases for testing |
 | `packages/architecture-shepherd/test/checker.test.ts` | Unit + integration tests |
@@ -457,7 +457,7 @@ Or use the unified CLI:
 
 ## Configuration File
 
-`~/.hermes/mcp_config.json` (per-user) or `./.hermes/mcp_config.json` (per-project):
+`~/.code-inspect-mcp/mcp_config.json` (per-user) or `./.code-inspect-mcp/mcp_config.json` (per-project):
 
 ```json
 {
@@ -470,12 +470,12 @@ Or use the unified CLI:
     "manifest_path": "ARCHITECTURE.md"
   },
   "pattern_miner": {
-    "custom_patterns_path": ".hermes/patterns/",
+    "custom_patterns_path": ".code-inspect-mcp/patterns/",
     "max_file_size_kb": 500
   },
   "repograph": {
     "storage": "sqlite",
-    "path": ".hermes/repograph.db",
+    "path": ".code-inspect-mcp/repograph.db",
     "auto_sync": true,
     "json_sidecar": true
   },

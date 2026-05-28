@@ -3,8 +3,6 @@ dist/
 coverage/
 *.log
 .env
-.hermes/
-.code-inpect-mcp/
 .code-inspect-mcp/
 *.tsbuildinfo
 __pycache__/

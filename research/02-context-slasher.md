@@ -349,7 +349,7 @@ def authenticate(username: str, password: str) -> Token | None:
 
 ### 5.6 Cache Strategy
 
-Parse results should be cached by `(filepath, file_hash)` to avoid re-parsing unchanged files. The Gemini Notes specify this. Cache location: `.hermes/cache/ast/` within the workspace.
+Parse results should be cached by `(filepath, file_hash)` to avoid re-parsing unchanged files. The Gemini Notes specify this. Cache location: `.code-inspect-mcp/cache/ast/` within the workspace.
 
 Invalidation: On file write (detected via mtime or git hook), invalidate the cache entry for that file.
 

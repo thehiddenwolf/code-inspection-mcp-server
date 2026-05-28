@@ -28,7 +28,7 @@ function getFilesRecursively(dir: string, fileList: string[] = []): string[] {
         file !== 'node_modules' &&
         file !== 'dist' &&
         file !== '.git' &&
-        file !== '.hermes' &&
+        file !== '.code-inspect-mcp' &&
         file !== 'coverage'
       ) {
         getFilesRecursively(filePath, fileList);
