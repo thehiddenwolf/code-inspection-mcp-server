@@ -23,7 +23,7 @@ export interface SqueezedResult {
 }
 
 /** Languages we can attempt to parse */
-export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'jsx' | 'tsx';
+export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'jsx' | 'tsx' | 'csharp' | 'vbnet';
 
 /** Maps internal language names to tree-sitter grammar names */
 export const LANGUAGE_GRAMMAR_MAP: Record<SupportedLanguage, string> = {
@@ -33,6 +33,8 @@ export const LANGUAGE_GRAMMAR_MAP: Record<SupportedLanguage, string> = {
   go: 'go',
   jsx: 'jsx',
   tsx: 'tsx',
+  csharp: 'c-sharp',
+  vbnet: 'vbnet',
 };
 
 /** Maps file extensions to supported languages */
@@ -47,4 +49,7 @@ export const EXTENSION_TO_LANGUAGE: Record<string, SupportedLanguage> = {
   '.tsx': 'tsx',
   '.py': 'python',
   '.go': 'go',
+  '.cs': 'csharp',
+  '.vb': 'vbnet',
 };
+

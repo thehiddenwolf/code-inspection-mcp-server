@@ -311,5 +311,26 @@ describe('Import Shrinker Edge Cases & Bugs', () => {
     const result = shrinkImports(code, 'go', 'balanced');
     expect(result.cleaned).toContain('"fmt"');
   });
+
+  it('removes C# comments and shrinks using directives', () => {
+    const code = `using System;\nusing System.Collections.Generic;\n// C# comment\npublic class Test {}`;
+    const resultStrip = stripComments(code, 'csharp');
+    expect(resultStrip.cleaned).not.toContain('C# comment');
+    expect(resultStrip.cleaned).toContain('public class Test {}');
+
+    const resultShrink = shrinkImports(code, 'csharp', 'aggressive');
+    expect(resultShrink.cleaned).toContain('using System;');
+  });
+
+  it('removes VB.Net comments and shrinks Imports', () => {
+    const code = `Imports System.IO\nImports System.Text\n' VB.Net comment\nPublic Class Test\nEnd Class`;
+    const resultStrip = stripComments(code, 'vbnet');
+    expect(resultStrip.cleaned).not.toContain('VB.Net comment');
+    expect(resultStrip.cleaned).toContain('Public Class Test');
+
+    const resultShrink = shrinkImports(code, 'vbnet', 'aggressive');
+    expect(resultShrink.cleaned).toContain('Imports System.IO');
+  });
 });
+
 

@@ -188,4 +188,98 @@ export const DEFAULT_PACKS: LanguagePack[] = [
       wildcardFallbackAction: 'keep',
     },
   },
+  {
+    metadata: {
+      name: 'csharp',
+      version: '1.0.0',
+      fileExtensions: ['.cs'],
+    },
+    parserName: 'tree-sitter-c-sharp',
+    astQueries: {
+      functions: `
+        (method_declaration) @func
+        (constructor_declaration) @func
+        (destructor_declaration) @func
+        (local_function_statement) @func
+      `,
+      classes: `
+        (class_declaration) @class
+        (interface_declaration) @class
+        (struct_declaration) @class
+        (record_declaration) @class
+        (enum_declaration) @class
+      `,
+      imports: `
+        (using_directive) @import
+      `,
+    },
+    regexPatterns: {
+      commentDetection: /\/\/.*|\/\*[\s\S]*?\*\//g,
+      importExtraction: /^using\s+[\s\S]*?;/gm,
+    },
+    rules: {
+      comment: { action: 'strip' },
+      import: { action: 'shrink' },
+    },
+    squeezer: {
+      bodyPlaceholder: '{ /* ... */ }',
+      bodyPatterns: [
+        {
+          pattern: /(\b(?:public|private|protected|internal|static|async|override|virtual|abstract|partial)\s+[\w<>]+\s+\w+\s*\([^)]*\)\s*)\{([^{}]*(?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}[^{}]*)*)\}/g,
+          replacement: '$1{ /* ... */ }',
+        },
+      ],
+      privateBodyPatterns: [
+        {
+          pattern: /(\b(?:private|protected)\s+[\w<>]+\s+\w+\s*\([^)]*\)\s*)\{([^{}]*(?:\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}[^{}]*)*)\}/g,
+          replacement: '$1{ /* ... */ }',
+        },
+      ],
+      importStartRegex: /^\s*using\s+/,
+      importEndRegex: /;/,
+      wildcardFallbackAction: 'keep',
+    },
+  },
+  {
+    metadata: {
+      name: 'vbnet',
+      version: '1.0.0',
+      fileExtensions: ['.vb'],
+    },
+    parserName: 'tree-sitter-vbnet',
+    astQueries: {
+      functions: `
+        (method_declaration) @func
+      `,
+    },
+    regexPatterns: {
+      commentDetection: /'[^\n]*/g,
+      importExtraction: /^Imports\s+[\w.]+/gm,
+    },
+    rules: {
+      comment: { action: 'strip' },
+      import: { action: 'shrink' },
+    },
+    squeezer: {
+      bodyPlaceholder: '\n    ...\n',
+      bodyPatterns: [
+        {
+          pattern: /(Sub\s+\w+\s*\([^)]*\))([\s\S]*?)(End\s+Sub)/gi,
+          replacement: '$1\n    ...\n$3',
+        },
+        {
+          pattern: /(Function\s+\w+\s*\([^)]*\)(?:\s+As\s+\w+)?)([\s\S]*?)(End\s+Function)/gi,
+          replacement: '$1\n    ...\n$3',
+        },
+        {
+          pattern: /(Class\s+\w+)([\s\S]*?)(End\s+Class)/gi,
+          replacement: '$1\n    ...\n$3',
+        },
+      ],
+      importStartRegex: /^\s*Imports\s+/,
+      importEndRegex: /\n/,
+      wildcardFallbackAction: 'keep',
+    },
+  },
 ];
+
