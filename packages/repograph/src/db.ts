@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createLogger } from '@hermes/shared/utils/logging';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const log = createLogger('repograph:db');
 

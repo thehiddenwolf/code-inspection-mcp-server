@@ -12,6 +12,9 @@ import { createLogger } from '@hermes/shared/utils/logging';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const log = createLogger('repograph:graph-store');
 
@@ -782,7 +785,6 @@ export function computeFileHash(content: string): string {
  */
 function loadBetterSqlite3(): (new (path: string) => import('better-sqlite3').Database) | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('better-sqlite3');
     return mod.default ?? mod;
   } catch {
