@@ -1,4 +1,4 @@
-.PHONY: build test lint clean dev install format ci check-solid lint-eslint lint-tsc depcruise
+.PHONY: build rebuild test lint clean dev install format ci check-solid lint-eslint lint-tsc depcruise
 
 # ── Variables ───────────────────────────────────────────────────────────────
 NPM ?= npm
@@ -15,6 +15,9 @@ install:
 # ── Build ────────────────────────────────────────────────────────────────────
 build:
 	$(NPM) run build
+
+rebuild:
+	$(NPM) run rebuild
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 test-js:
