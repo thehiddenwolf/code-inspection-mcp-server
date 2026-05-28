@@ -153,6 +153,123 @@ function saveGraphState(context: RepoContext): void {
   }
 }
 
+interface CodeReference {
+  file: string;
+  class_or_table: string;
+  method: string;
+  line_number: number;
+  line_of_code: string;
+}
+
+function findCodeReferences(
+  query: string,
+  root: string,
+  indexedFiles: Set<string>,
+): CodeReference[] {
+  const refs: CodeReference[] = [];
+  const symbolWordRe = new RegExp(`\\b${query}\\b`);
+  const declRe = new RegExp(`\\b(?:class|interface|struct|record|enum|def|function|sub|table|view|procedure)\\s+${query}\\b`, 'i');
+
+  for (const relPath of indexedFiles) {
+    const fullPath = path.join(root, relPath);
+    try {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      const lines = content.split(/\r?\n/);
+
+      let currentClassOrTable = 'None';
+      let currentMethod = 'None';
+
+      const ext = path.extname(relPath).toLowerCase();
+      const isSql = ext === '.sql';
+      const isPython = ext === '.py';
+      const isVb = ext === '.vb';
+      const isJsTsCs = ext === '.js' || ext === '.jsx' || ext === '.ts' || ext === '.tsx' || ext === '.cs';
+
+      const jstscsClassRe = /(?:class|interface|struct|record)\s+(\w+)/i;
+      const jstscsMethodRe = /\b(?!if|for|while|catch|switch|using)(\w+)\s*\(([^)]*)\)\s*(?:\{|=>|;)/i;
+
+      const pyClassRe = /class\s+(\w+)/i;
+      const pyDefRe = /def\s+(\w+)/i;
+
+      const vbClassRe = /(?:Class|Interface|Structure|Module)\s+(\w+)/i;
+      const vbMethodRe = /(?:Sub|Function)\s+(\w+)/i;
+
+      const sqlTableRe = /CREATE\s+(?:TABLE|VIEW)\s+(?:[\w"`]+\.)?([\w"`]+)/i;
+      const sqlFuncRe = /CREATE\s+(?:FUNCTION|PROCEDURE)\s+(?:[\w"`]+\.)?([\w"`]+)/i;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!;
+        const lineNum = i + 1;
+
+        if (isJsTsCs) {
+          const classMatch = jstscsClassRe.exec(line);
+          if (classMatch) {
+            currentClassOrTable = classMatch[1]!;
+            currentMethod = 'None';
+          }
+          const methodMatch = jstscsMethodRe.exec(line);
+          if (methodMatch) currentMethod = methodMatch[1]!;
+          if (/^\s*\}/.test(line)) {
+            currentMethod = 'None';
+          }
+        } else if (isPython) {
+          const classMatch = pyClassRe.exec(line);
+          if (classMatch) {
+            currentClassOrTable = classMatch[1]!;
+            currentMethod = 'None';
+          }
+          const defMatch = pyDefRe.exec(line);
+          if (defMatch) currentMethod = defMatch[1]!;
+        } else if (isVb) {
+          const classMatch = vbClassRe.exec(line);
+          if (classMatch) {
+            currentClassOrTable = classMatch[1]!;
+            currentMethod = 'None';
+          }
+          const methodMatch = vbMethodRe.exec(line);
+          if (methodMatch) currentMethod = methodMatch[1]!;
+
+          if (/^\s*End\s+(Class|Interface|Structure|Module)/i.test(line)) {
+            currentClassOrTable = 'None';
+          }
+          if (/^\s*End\s+(Sub|Function)/i.test(line)) {
+            currentMethod = 'None';
+          }
+        } else if (isSql) {
+          const tableMatch = sqlTableRe.exec(line);
+          if (tableMatch) {
+            currentClassOrTable = tableMatch[1]!.replace(/['"`]/g, '');
+            currentMethod = 'None';
+          }
+          const funcMatch = sqlFuncRe.exec(line);
+          if (funcMatch) {
+            currentMethod = funcMatch[1]!.replace(/['"`]/g, '');
+            currentClassOrTable = 'None';
+          }
+        }
+
+        if (symbolWordRe.test(line)) {
+          if (declRe.test(line)) {
+            continue;
+          }
+
+          refs.push({
+            file: relPath,
+            class_or_table: currentClassOrTable,
+            method: currentMethod,
+            line_number: lineNum,
+            line_of_code: line.trim(),
+          });
+        }
+      }
+    } catch {
+      // Ignore unreadable files
+    }
+  }
+
+  return refs;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Tool Definitions
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -191,8 +308,12 @@ const TOOLS: ToolDef[] = [
       const filePath = args.file_path ? String(args.file_path) : undefined;
       const scope = (args.scope as QueryScope) ?? 'project';
 
-      const { graph } = getRepoContext(filePath);
+      const context = getRepoContext(filePath);
+      const { graph, indexedFiles } = context;
       const result = graph.query({ query, filePath, scope });
+
+      const root = context.currentProjectRoot || lastActiveRoot;
+      const codeReferences = findCodeReferences(query, root, indexedFiles);
 
       return {
         content: [
@@ -213,6 +334,7 @@ const TOOLS: ToolDef[] = [
                   type: e.type,
                 })),
                 depths: result.depths,
+                code_references: codeReferences,
               },
               null,
               2,
@@ -451,8 +573,12 @@ const TOOLS: ToolDef[] = [
       const symbol = String(args.symbol ?? '');
       const projectPath = args.project_path ? String(args.project_path) : undefined;
 
-      const { graph } = getRepoContext(projectPath);
+      const context = getRepoContext(projectPath);
+      const { graph, indexedFiles } = context;
       const results = graph.findReferences(symbol, projectPath);
+
+      const root = context.currentProjectRoot || lastActiveRoot;
+      const codeReferences = findCodeReferences(symbol, root, indexedFiles);
 
       return {
         content: [
@@ -479,6 +605,7 @@ const TOOLS: ToolDef[] = [
                     };
                   }),
                 })),
+                code_references: codeReferences,
               },
               null,
               2,
