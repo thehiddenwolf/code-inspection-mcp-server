@@ -42,7 +42,7 @@ const log = createLogger('hermes-repograph');
 // State
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const store: GraphStore = createGraphStore('.hermes/repograph.db');
+const store: GraphStore = createGraphStore('.code-inpect-mcp/reprograph.db');
 const graph = new GraphEngine();
 const indexer = new FileIndexer(store);
 

@@ -59,7 +59,7 @@ const manifestStore = new Map<string, Manifest>();
 const customPatterns = new Map<string, any>();
 
 // Initialize RepoGraph components
-const store = createGraphStore('.hermes/repograph.db');
+const store = createGraphStore('.code-inpect-mcp/reprograph.db');
 const graph = new GraphEngine();
 const indexer = new FileIndexer(store);
 
