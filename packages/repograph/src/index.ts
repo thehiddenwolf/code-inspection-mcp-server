@@ -319,26 +319,7 @@ const TOOLS: ToolDef[] = [
         content: [
           {
             type: 'text',
-            text: JSON.stringify(
-              {
-                matched: result.nodes.length,
-                nodes: result.nodes.map((n) => ({
-                  id: n.id,
-                  type: n.type,
-                  label: n.label,
-                  file: n.filePath,
-                })),
-                edges: result.edges.map((e) => ({
-                  from: e.from,
-                  to: e.to,
-                  type: e.type,
-                })),
-                depths: result.depths,
-                code_references: codeReferences,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(codeReferences, null, 2),
           },
         ],
       };
@@ -584,32 +565,7 @@ const TOOLS: ToolDef[] = [
         content: [
           {
             type: 'text',
-            text: JSON.stringify(
-              {
-                symbol,
-                total_results: results.length,
-                references: results.map((r) => ({
-                  symbol_node: {
-                    id: r.node.id,
-                    type: r.node.type,
-                    label: r.node.label,
-                    file: r.node.filePath,
-                  },
-                  referrers: r.references.map((ref) => {
-                    const fromNode = graph.getNode(ref.from);
-                    return {
-                      from: ref.from,
-                      from_label: fromNode?.label ?? ref.from,
-                      from_file: fromNode?.filePath ?? 'unknown',
-                      type: ref.type,
-                    };
-                  }),
-                })),
-                code_references: codeReferences,
-              },
-              null,
-              2,
-            ),
+            text: JSON.stringify(codeReferences, null, 2),
           },
         ],
       };

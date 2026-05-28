@@ -684,12 +684,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const root = context.currentProjectRoot || lastActiveRoot;
       const codeReferences = findCodeReferences(query, root, indexedFiles);
 
-      resultText = JSON.stringify({
-        matched: queryResult.nodes.length,
-        nodes: queryResult.nodes.map((n: any) => ({ id: n.id, type: n.type, label: n.label, file: n.filePath })),
-        edges: queryResult.edges.map((e: any) => ({ from: e.from, to: e.to, type: e.type })),
-        code_references: codeReferences,
-      }, null, 2);
+      resultText = JSON.stringify(codeReferences, null, 2);
       break;
     }
     case 'repograph_index': {
