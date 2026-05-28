@@ -239,9 +239,10 @@ export class SqliteGraphStore implements GraphStore {
       log.warn('FTS5 not available — full-text search disabled. Install SQLite with FTS5 support.');
     }
 
+    this.initialized = true;
+
     // Run migrations
     this.migrate();
-    this.initialized = true;
 
     log.info('SQLite graph store initialized', { path: this.dbPath });
   }
