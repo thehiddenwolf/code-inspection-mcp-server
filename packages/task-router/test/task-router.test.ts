@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import path from 'path';
 import { estimateComplexity, extractSubtasks } from '../src/estimator.js';
 import { Analyzer } from '../src/analyzer.js';
 import { Decomposer } from '../src/decomposer.js';
@@ -111,7 +112,7 @@ describe('TaskRouter', () => {
       const analyzer = new Analyzer();
       const result = await analyzer.analyze({
         type: 'file',
-        path: '/home/kerwin/code/hermes-mcp-toolset/packages/task-router/src/estimator.ts',
+        path: path.resolve(process.cwd(), 'packages/task-router/src/estimator.ts'),
       });
 
       expect(result).toHaveProperty('total');
