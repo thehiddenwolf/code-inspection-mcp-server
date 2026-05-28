@@ -16,7 +16,8 @@ import type {
   McpToolDefinition,
   McpToolCallResult,
 } from '@hermes/shared';
-import { createLogger, PACKAGE_VERSION } from '@hermes/shared';
+import { createLogger, PACKAGE_VERSION, LanguagePackRegistry, loadLanguagePacks } from '@hermes/shared';
+import * as os from 'node:os';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
@@ -653,6 +654,21 @@ export async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const useSSE = args.includes('--sse');
   const ssePort = parseInt(process.env.PORT ?? '3100', 10);
+
+  // Auto-discover and load language packs dynamically
+  const registry = LanguagePackRegistry.getInstance();
+  const pathsToLoad = [
+    process.env.HERMES_LANGUAGE_PACKS_DIR,
+    path.join(os.homedir(), '.hermes', 'language-packs'),
+    path.join(process.cwd(), 'config', 'language-packs'),
+  ].filter(Boolean) as string[];
+
+  for (const dir of pathsToLoad) {
+    if (fs.existsSync(dir)) {
+      log.info(`Loading language packs from directory: ${dir}`);
+      loadLanguagePacks(registry, dir);
+    }
+  }
 
   const server = createServer();
 

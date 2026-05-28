@@ -1,20 +1,12 @@
 import type { ViolationType } from '@hermes/shared/schemas/violations.js';
 import { getLineNumber } from '../checker.js';
+import { getEnforcerRules } from './utils.js';
 
 /**
- * Patterns that match value objects / DTOs / simple data classes.
- * Instantiating these inside a class is usually fine (doesn't violate DIP).
+ * Check if a class matches the value object patterns.
  */
-const VALUE_OBJECT_PATTERNS = [
-  /^[A-Z]\w*(?:Dto|DTO|ValueObject|Vo|VO|Data|Record|Model|Entity|Event|Message|Request|Response|Result|Error|Config|Options|Settings|Props|State|Input|Output)$/,
-  /^(?:string|number|boolean|Date|RegExp|Map|Set|Array|Object|Promise|Error)$/,
-];
-
-/**
- * Default patterns that look like value objects.
- */
-function isValueObject(className: string): boolean {
-  return VALUE_OBJECT_PATTERNS.some(p => p.test(className));
+function isValueObject(className: string, valueObjectPatterns: RegExp[]): boolean {
+  return valueObjectPatterns.some(p => p.test(className));
 }
 
 /**
@@ -30,11 +22,12 @@ export function checkDependencyInversion(
   file: string,
   options?: { valueObjectPatterns?: RegExp[] },
 ): ViolationType[] {
+  const rules = getEnforcerRules(file);
   const violations: ViolationType[] = [];
-  const valuePatterns = options?.valueObjectPatterns ?? VALUE_OBJECT_PATTERNS;
+  const valuePatterns = options?.valueObjectPatterns ?? rules.valueObjectPatterns;
 
   // ── 1. Find class declarations ──
-  const classRegex = /class\s+(\w+)/g;
+  const classRegex = new RegExp(rules.classRegex.source, rules.classRegex.flags.includes('g') ? rules.classRegex.flags : rules.classRegex.flags + 'g');
   let classMatch: RegExpExecArray | null;
 
   while ((classMatch = classRegex.exec(code)) !== null) {
@@ -47,14 +40,14 @@ export function checkDependencyInversion(
     const line = getLineNumber(code, classStart);
 
     // ── 2. Check for `new ConcreteClass()` inside methods ──
-    const newRegex = /new\s+([A-Z]\w+)\s*\(/g;
+    const newRegex = new RegExp(rules.newInstantiationRegex.source, rules.newInstantiationRegex.flags.includes('g') ? rules.newInstantiationRegex.flags : rules.newInstantiationRegex.flags + 'g');
     let newMatch: RegExpExecArray | null;
 
     while ((newMatch = newRegex.exec(classBody)) !== null) {
       const concreteClassName = newMatch[1];
 
       // Skip if it looks like a value object / DTO
-      if (isValueObject(concreteClassName)) continue;
+      if (isValueObject(concreteClassName, valuePatterns)) continue;
       // Skip common built-ins
       if (['Map', 'Set', 'WeakMap', 'WeakSet', 'Promise', 'Date', 'RegExp', 'Error', 'Array', 'Object'].includes(concreteClassName)) continue;
 
@@ -77,7 +70,7 @@ export function checkDependencyInversion(
     }
 
     // ── 3. Check for static method calls on concrete classes ──
-    const staticCallRegex = /([A-Z]\w+)\.(\w+)\s*\(/g;
+    const staticCallRegex = new RegExp(rules.staticCallRegex.source, rules.staticCallRegex.flags.includes('g') ? rules.staticCallRegex.flags : rules.staticCallRegex.flags + 'g');
     let staticMatch: RegExpExecArray | null;
 
     while ((staticMatch = staticCallRegex.exec(classBody)) !== null) {

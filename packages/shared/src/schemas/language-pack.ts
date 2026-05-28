@@ -63,6 +63,18 @@ export const JsonSqueezerRulesSchema = z.object({
   wildcardFallbackAction: z.enum(['keep', 'remove']).optional(),
 });
 
+// Schema for raw JSON validation of SOLID Enforcer custom rules
+export const JsonSolidEnforcerRulesSchema = z.object({
+  classRegex: z.string().optional(),
+  derivedClassRegex: z.string().optional(),
+  interfaceRegex: z.string().optional(),
+  concernPatterns: z.record(z.string(), z.array(z.string())).optional(),
+  notImplementedPatterns: z.array(z.string()).optional(),
+  newInstantiationRegex: z.string().optional(),
+  staticCallRegex: z.string().optional(),
+  valueObjectPatterns: z.array(z.string()).optional(),
+});
+
 // Schema for raw JSON validation of the LanguagePack
 export const JsonLanguagePackSchema = z.object({
   metadata: LanguagePackMetadataSchema,
@@ -71,6 +83,7 @@ export const JsonLanguagePackSchema = z.object({
   regexPatterns: JsonRegexPatternsSchema.optional(),
   rules: HandlingRulesSchema.optional(),
   squeezer: JsonSqueezerRulesSchema.optional(),
+  solidEnforcer: JsonSolidEnforcerRulesSchema.optional(),
 });
 
 export type JsonLanguagePack = z.infer<typeof JsonLanguagePackSchema>;

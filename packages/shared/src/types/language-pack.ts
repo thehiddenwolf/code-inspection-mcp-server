@@ -154,6 +154,20 @@ export interface SqueezerRules {
  * };
  * ```
  */
+/**
+ * Specific rules for SOLID principle checks.
+ */
+export interface SolidEnforcerRules {
+  classRegex?: RegExp;
+  derivedClassRegex?: RegExp;
+  interfaceRegex?: RegExp;
+  concernPatterns?: Record<string, RegExp[]>;
+  notImplementedPatterns?: RegExp[];
+  newInstantiationRegex?: RegExp;
+  staticCallRegex?: RegExp;
+  valueObjectPatterns?: RegExp[];
+}
+
 export interface LanguagePack {
   /** Metadata of the language pack. */
   metadata: LanguagePackMetadata;
@@ -167,6 +181,8 @@ export interface LanguagePack {
   rules?: HandlingRules;
   /** Optional custom configuration for token squeezing. */
   squeezer?: SqueezerRules;
+  /** Optional custom configuration for SOLID principle checks. */
+  solidEnforcer?: SolidEnforcerRules;
 }
 
 

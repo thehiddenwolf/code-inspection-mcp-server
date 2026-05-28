@@ -1,18 +1,6 @@
 import type { ViolationType } from '@hermes/shared/schemas/violations.js';
 import { getLineNumber } from '../checker.js';
-
-/**
- * Concern-area keyword sets that suggest a class is handling multiple domains.
- */
-const CONCERN_PATTERNS: Record<string, RegExp[]> = {
-  database: [/db\./, /\.query\(/, /\.find\(/, /\.save\(/, /\.update\(/, /\.delete\(/, /repository/, /\.insert\(/, /\.create\(/, /\.findOne\(/, /\.findAll\(/],
-  ui: [/\.render\(/, /\.display\(/, /formatHTML/, /\.innerHTML/, /createElement/, /\.appendChild/, /document\./, /window\./, /\.show\(/, /\.alert\(/, /console\.log/],
-  business_logic: [/calculate/, /compute/, /validate/, /process/, /transform/, /\.map\(/, /\.filter\(/, /\.reduce\(/, /\bapply\b/, /\brules?\b/, /\bpolicy\b/],
-  external_service: [/fetch\(/, /axios/, /http\./, /\.post\(/, /\.get\(/, /sendEmail/, /\.send\(/, /api\./, /request\(/, /\.emit\(/, /publish/],
-  logging: [/logger\./, /log\.info/, /log\.error/, /log\.warn/, /console\.log/, /console\.error/],
-  file_io: [/fs\./, /readFile/, /writeFile/, /\.pipe\(/, /stream/],
-  serialization: [/JSON\.stringify/, /JSON\.parse/, /\.toString\(/, /serialize/, /deserialize/],
-};
+import { getEnforcerRules } from './utils.js';
 
 /**
  * Check a class for Single Responsibility Principle violations.
@@ -25,11 +13,12 @@ export function checkSingleResponsibility(
   file: string,
   options?: { minConcernAreas?: number },
 ): ViolationType[] {
+  const rules = getEnforcerRules(file);
   const violations: ViolationType[] = [];
   const minConcernAreas = options?.minConcernAreas ?? 2;
 
   // Find all class declarations
-  const classRegex = /class\s+(\w+)\s*(?:extends\s+\w+\s*)?(?:implements\s+\w+\s*)?\{/g;
+  const classRegex = new RegExp(rules.classRegex.source, rules.classRegex.flags.includes('g') ? rules.classRegex.flags : rules.classRegex.flags + 'g');
   let classMatch: RegExpExecArray | null;
 
   while ((classMatch = classRegex.exec(code)) !== null) {
@@ -39,7 +28,7 @@ export function checkSingleResponsibility(
 
     if (!classBody) continue;
 
-    const concerns = detectConcerns(classBody);
+    const concerns = detectConcerns(classBody, rules.concernPatterns);
 
     if (concerns.length >= minConcernAreas) {
       const line = getLineNumber(code, classStart);
@@ -89,10 +78,10 @@ function extractClassBody(code: string, classStart: number): string | null {
  * Skips lines that are type annotations in constructors (e.g., repository pattern names in DI).
  * Also skips lines that have `this.something.method()` before the match (delegation pattern).
  */
-function detectConcerns(classBody: string): string[] {
+function detectConcerns(classBody: string, concernPatterns: Record<string, RegExp[]>): string[] {
   const found: string[] = [];
 
-  for (const [concern, patterns] of Object.entries(CONCERN_PATTERNS)) {
+  for (const [concern, patterns] of Object.entries(concernPatterns)) {
     for (const pattern of patterns) {
       let match: RegExpExecArray | null;
       const re = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');

@@ -96,6 +96,39 @@ export function convertJsonPackToPack(jsonPack: JsonLanguagePack): LanguagePack 
     pack.squeezer = squeezer;
   }
 
+  if (jsonPack.solidEnforcer) {
+    const solidEnforcer: any = {};
+    if (jsonPack.solidEnforcer.classRegex) {
+      solidEnforcer.classRegex = parseRegexString(jsonPack.solidEnforcer.classRegex);
+    }
+    if (jsonPack.solidEnforcer.derivedClassRegex) {
+      solidEnforcer.derivedClassRegex = parseRegexString(jsonPack.solidEnforcer.derivedClassRegex);
+    }
+    if (jsonPack.solidEnforcer.interfaceRegex) {
+      solidEnforcer.interfaceRegex = parseRegexString(jsonPack.solidEnforcer.interfaceRegex);
+    }
+    if (jsonPack.solidEnforcer.newInstantiationRegex) {
+      solidEnforcer.newInstantiationRegex = parseRegexString(jsonPack.solidEnforcer.newInstantiationRegex);
+    }
+    if (jsonPack.solidEnforcer.staticCallRegex) {
+      solidEnforcer.staticCallRegex = parseRegexString(jsonPack.solidEnforcer.staticCallRegex);
+    }
+    if (jsonPack.solidEnforcer.concernPatterns) {
+      const concernPatterns: Record<string, RegExp[]> = {};
+      for (const [concern, list] of Object.entries(jsonPack.solidEnforcer.concernPatterns)) {
+        concernPatterns[concern] = list.map(p => parseRegexString(p));
+      }
+      solidEnforcer.concernPatterns = concernPatterns;
+    }
+    if (jsonPack.solidEnforcer.notImplementedPatterns) {
+      solidEnforcer.notImplementedPatterns = jsonPack.solidEnforcer.notImplementedPatterns.map(p => parseRegexString(p));
+    }
+    if (jsonPack.solidEnforcer.valueObjectPatterns) {
+      solidEnforcer.valueObjectPatterns = jsonPack.solidEnforcer.valueObjectPatterns.map(p => parseRegexString(p));
+    }
+    pack.solidEnforcer = solidEnforcer;
+  }
+
   return pack;
 }
 

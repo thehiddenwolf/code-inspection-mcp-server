@@ -1,5 +1,6 @@
 import type { ViolationType } from '@hermes/shared/schemas/violations.js';
 import { getLineNumber } from '../checker.js';
+import { getEnforcerRules } from './utils.js';
 
 /**
  * Check for Liskov Substitution Principle violations.
@@ -13,10 +14,11 @@ export function checkLiskovSubstitution(
   code: string,
   file: string,
 ): ViolationType[] {
+  const rules = getEnforcerRules(file);
   const violations: ViolationType[] = [];
 
   // ── 1. Find class declarations with 'extends' ──
-  const classRegex = /class\s+(\w+)\s+extends\s+(\w+)(?:<[^>]*>)?\s*\{/g;
+  const classRegex = new RegExp(rules.derivedClassRegex.source, rules.derivedClassRegex.flags.includes('g') ? rules.derivedClassRegex.flags : rules.derivedClassRegex.flags + 'g');
   let classMatch: RegExpExecArray | null;
 
   while ((classMatch = classRegex.exec(code)) !== null) {
@@ -28,31 +30,32 @@ export function checkLiskovSubstitution(
     if (!classBody) continue;
 
     // ── 2. Check for NotImplementedError throws ──
-    // Matches both `throw new NotImplementedError(...)` and `throw new Error('not implemented'...)`
-    const notImplRegex = /throw\s+(?:new\s+)?(?:NotImplementedError|Error)\s*\(\s*['"`][^'"`]*not\s+implemented[^'"`]*['"`]/gi;
-    let notImplMatch: RegExpExecArray | null;
+    for (const pattern of rules.notImplementedPatterns) {
+      const notImplRegex = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+      let notImplMatch: RegExpExecArray | null;
 
-    while ((notImplMatch = notImplRegex.exec(classBody)) !== null) {
-      const throwLine = getLineNumber(code, classStart + notImplMatch.index);
+      while ((notImplMatch = notImplRegex.exec(classBody)) !== null) {
+        const throwLine = getLineNumber(code, classStart + notImplMatch.index);
 
-      // Find which method this throw is inside
-      const methodName = findEnclosingMethod(classBody, notImplMatch.index);
-      const methodHint = methodName ? ` in method '${methodName}'` : '';
+        // Find which method this throw is inside
+        const methodName = findEnclosingMethod(classBody, notImplMatch.index);
+        const methodHint = methodName ? ` in method '${methodName}'` : '';
 
-      violations.push({
-        rule_id: 'solid_lsp',
-        rule_name: 'Liskov Substitution Principle',
-        severity: 'error',
-        message: `Derived class '${derivedClass}' (extends '${baseClass}') throws NotImplementedError${methodHint}. This breaks LSP — subtypes must be substitutable for their base types.`,
-        locations: [{
-          file,
-          line: throwLine,
-          column: 1,
-          snippet: `throw new NotImplementedError(...)`,
-        }],
-        remediation: `Either implement the method properly in '${derivedClass}', or restructure the hierarchy. Consider using the Template Method pattern or making the base method abstract with a clear contract.`,
-        category: 'solid_lsp',
-      });
+        violations.push({
+          rule_id: 'solid_lsp',
+          rule_name: 'Liskov Substitution Principle',
+          severity: 'error',
+          message: `Derived class '${derivedClass}' (extends '${baseClass}') throws NotImplementedError${methodHint}. This breaks LSP — subtypes must be substitutable for their base types.`,
+          locations: [{
+            file,
+            line: throwLine,
+            column: 1,
+            snippet: notImplMatch[0],
+          }],
+          remediation: `Either implement the method properly in '${derivedClass}', or restructure the hierarchy. Consider using the Template Method pattern or making the base method abstract with a clear contract.`,
+          category: 'solid_lsp',
+        });
+      }
     }
 
     // ── 3. Check for empty method stubs ──

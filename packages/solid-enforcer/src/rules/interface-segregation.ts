@@ -1,6 +1,8 @@
 import type { ViolationType } from '@hermes/shared/schemas/violations.js';
 import { getLineNumber } from '../checker.js';
 
+import { getEnforcerRules } from './utils.js';
+
 /**
  * Check for Interface Segregation Principle violations.
  *
@@ -12,11 +14,12 @@ export function checkInterfaceSegregation(
   file: string,
   options?: { minInterfaceMethods?: number },
 ): ViolationType[] {
+  const rules = getEnforcerRules(file);
   const violations: ViolationType[] = [];
   const minMethods = options?.minInterfaceMethods ?? 5;
 
   // ── 1. Find all interface declarations ──
-  const interfaceRegex = /interface\s+(\w+)\s*(?:extends\s+[\w,\s]+)?\{/g;
+  const interfaceRegex = new RegExp(rules.interfaceRegex.source, rules.interfaceRegex.flags.includes('g') ? rules.interfaceRegex.flags : rules.interfaceRegex.flags + 'g');
   let interfaceMatch: RegExpExecArray | null;
 
   while ((interfaceMatch = interfaceRegex.exec(code)) !== null) {
@@ -63,14 +66,17 @@ export function checkInterfaceSegregation(
 
     if (!classBody) continue;
 
-    const notImplRegex = /throw\s+(?:new\s+)?NotImplementedError\s*\([^)]*\)/gi;
-    let notImplMatch: RegExpExecArray | null;
     const nonImplementedMethods: string[] = [];
 
-    while ((notImplMatch = notImplRegex.exec(classBody)) !== null) {
-      const methodName = findEnclosingMethod(classBody, notImplMatch.index);
-      if (methodName) {
-        nonImplementedMethods.push(methodName);
+    for (const pattern of rules.notImplementedPatterns) {
+      const notImplRegex = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+      let notImplMatch: RegExpExecArray | null;
+
+      while ((notImplMatch = notImplRegex.exec(classBody)) !== null) {
+        const methodName = findEnclosingMethod(classBody, notImplMatch.index);
+        if (methodName && !nonImplementedMethods.includes(methodName)) {
+          nonImplementedMethods.push(methodName);
+        }
       }
     }
 
