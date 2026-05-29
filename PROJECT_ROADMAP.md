@@ -58,7 +58,7 @@
 ### 4. `@hermes/repograph` — In-Repository Knowledge Graph
 **What it does:** Persistent codebase memory via SQLite-backed entity-relationship graph. Exposes call hierarchy tracing and module import dependency mapping.
 
-**MCP tools provided:** `index_codebase`, `find_indexed_symbol_references`, `repograph_get_call_hierarchy`, `repograph_get_dependencies`
+**MCP tools provided:** `index_codebase`, `find_indexed_symbol_references`, `get_indexed_symbol_tree`, `repograph_get_dependencies`
 
 **Status:** Completed.
 

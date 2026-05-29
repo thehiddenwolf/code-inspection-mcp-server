@@ -631,7 +631,7 @@ export const TOOLS: ToolDef[] = [
     }
   },
   {
-    name: 'repograph_get_call_hierarchy',
+    name: 'get_indexed_symbol_tree',
     description: 'Get call hierarchy tree (incoming and outgoing calls) for a symbol.',
     version: '0.1.0',
     inputSchema: {
@@ -968,7 +968,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
 
-    case 'repograph_get_call_hierarchy': {
+    case 'get_indexed_symbol_tree': {
       const symbol = String(args?.symbol ?? '');
       const direction = (args?.direction as 'incoming' | 'outgoing' | 'both') ?? 'both';
       const maxDepth = Number(args?.max_depth ?? 3);

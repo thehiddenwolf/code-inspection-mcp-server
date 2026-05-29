@@ -272,9 +272,9 @@ The function \`greet\` is internal.
     });
   });
 
-  // ── repograph_get_call_hierarchy ──────────────────────────────────────────
+  // ── get_indexed_symbol_tree ────────────────────────────────────────────────
 
-  describe('repograph_get_call_hierarchy', () => {
+  describe('get_indexed_symbol_tree', () => {
     it('traces call hierarchy trees', async () => {
       // Manually add call edges to test the traversal logic
       const mainContext = (server as any).setRequestHandler ? null : undefined; // server is accessible

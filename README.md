@@ -249,7 +249,7 @@ Scans project files to construct a relational knowledge index mapping classes, i
   - `file_path` (string, optional): Restricts query to specific scope.
   - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
 
-#### `repograph_get_call_hierarchy`
+#### `get_indexed_symbol_tree`
 - **Description**: Returns incoming and outgoing calls for a function symbol.
 - **Inputs**:
   - `symbol` (string): Target function name.

@@ -203,7 +203,7 @@ Query the code knowledge graph for code relationships, declarations, and structu
 }
 ```
 
-### 3.3 `repograph_get_call_hierarchy`
+### 3.3 `get_indexed_symbol_tree`
 
 Traces and constructs incoming and outgoing call hierarchies for a function/method symbol.
 
