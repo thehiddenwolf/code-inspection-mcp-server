@@ -21,7 +21,7 @@ This document defines the complete, production-ready specifications for the Mode
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-### 1.1 `get_symbols`
+### 1.1 `get_symbol_definitions_from_file`
 
 Reads high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.
 
@@ -501,34 +501,7 @@ Auto-fixes formatting and lint errors on the specified file.
 
 Enables batch queries and multi-file code modifications atomically.
 
-### 8.1 `insight_reference_tracker`
-
-Tracks class/method definitions, usages, and markdown documentation references for a symbol.
-
-#### Input Schema
-```json
-{
-  "type": "object",
-  "properties": {
-    "symbol": { 
-      "type": "string", 
-      "description": "Symbol name to track (class, function, variable, etc.)" 
-    },
-    "project_path": { 
-      "type": "string", 
-      "description": "Optional project root path" 
-    },
-    "include_docs": { 
-      "type": "boolean", 
-      "default": true, 
-      "description": "Whether to scan markdown documentation for occurrences" 
-    }
-  },
-  "required": ["symbol"]
-}
-```
-
-### 8.2 `get_insights`
+### 8.1 `get_indexed_symbol_insights`
 
 Combines definitions, usages, references, or docs queries for multiple symbols into a single request.
 

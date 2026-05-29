@@ -267,7 +267,7 @@ interface ToolDef extends McpToolDefinition {
 export const TOOLS: ToolDef[] = [
   // ── TokenSqueezer ──────────────────────────────────────────────────────────
   {
-    name: 'get_symbols',
+    name: 'get_symbol_definitions_from_file',
     description: 'Read high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.',
     version: '0.1.0',
     inputSchema: {
@@ -557,21 +557,7 @@ export const TOOLS: ToolDef[] = [
   },
   // ── Insights & Refactoring ──────────────────────────────────────────────────
   {
-    name: 'insight_reference_tracker',
-    description: 'Track definitions, usages (references), and documentation mappings for a symbol.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        symbol: { type: 'string', description: 'Symbol name to track (class, function, variable, etc.)' },
-        project_path: { type: 'string', description: 'Optional project root path' },
-        include_docs: { type: 'boolean', default: true, description: 'Whether to scan markdown documentation for occurrences' }
-      },
-      required: ['symbol']
-    }
-  },
-  {
-    name: 'get_insights',
+    name: 'get_indexed_symbol_insights',
     description: 'Combine multiple definition, usage, reference, or documentation queries into a single result.',
     version: '0.1.0',
     inputSchema: {
@@ -687,7 +673,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
   switch (name) {
     // ── TokenSqueezer ──
-    case 'get_symbols': {
+    case 'get_symbol_definitions_from_file': {
       let code = args?.code ? String(args.code) : '';
       let lang = args?.language ? String(args.language) : '';
       const filePath = args?.filePath ? String(args.filePath) : '';
@@ -771,12 +757,66 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const scope = (args?.scope) ?? 'project';
       const context = getRepoContext(filePath);
       const { graph, indexedFiles } = context;
-      const queryResult = graph.query({ query, filePath, scope });
+      graph.query({ query, filePath, scope });
 
       const root = context.currentProjectRoot || lastActiveRoot;
-      const codeReferences = findCodeReferences(query, root, indexedFiles);
 
-      resultText = JSON.stringify(codeReferences, null, 2);
+      const definitions = graph.findDefinitions(query, filePath).map((node) => {
+        let lineOfCode = `[Definition] ${node.type} ${node.label}`;
+        const lineNumber = (node.metadata?.line as number) ?? 1;
+        const fullPath = path.isAbsolute(node.filePath) ? node.filePath : path.join(root, node.filePath);
+        try {
+          if (fs.existsSync(fullPath)) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const lines = content.split(/\r?\n/);
+            const lineIndex = lineNumber - 1;
+            if (lines[lineIndex] !== undefined) {
+              lineOfCode = lines[lineIndex].trim();
+            }
+          }
+        } catch {}
+
+        return {
+          file: node.filePath,
+          class_or_table: 'None',
+          method: 'None',
+          line_number: lineNumber,
+          line_of_code: lineOfCode,
+          is_definition: true,
+          symbol_type: node.type,
+        };
+      });
+
+      let targetFiles = indexedFiles;
+      if (filePath) {
+        const absTarget = path.isAbsolute(filePath)
+          ? filePath
+          : path.resolve(root, filePath);
+
+        targetFiles = new Set(
+          Array.from(indexedFiles).filter((f) => {
+            const absF = path.isAbsolute(f) ? f : path.resolve(root, f);
+            try {
+              const stat = fs.statSync(absTarget);
+              if (stat.isDirectory()) {
+                return absF.startsWith(absTarget + path.sep) || absF === absTarget;
+              } else {
+                return absF === absTarget;
+              }
+            } catch {
+              return absF === absTarget;
+            }
+          })
+        );
+      }
+
+      const usages = findCodeReferences(query, root, targetFiles).map((ref) => ({
+        ...ref,
+        is_definition: false,
+        symbol_type: 'reference',
+      }));
+
+      resultText = JSON.stringify([...definitions, ...usages], null, 2);
       break;
     }
     case 'index_codebase': {
@@ -924,23 +964,8 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
 
-    case 'insight_reference_tracker': {
-      const symbol = String(args?.symbol ?? '');
-      const projectPath = args?.project_path ? String(args.project_path) : undefined;
-      const includeDocs = args?.include_docs !== false;
 
-      if (!symbol) {
-        throw new Error("Parameter 'symbol' is required.");
-      }
-
-      const context = getRepoContext(projectPath);
-      const root = context.currentProjectRoot || lastActiveRoot;
-      const result = trackReference(symbol, root, context.graph, context.indexedFiles, includeDocs, findCodeReferences);
-      resultText = JSON.stringify(result, null, 2);
-      break;
-    }
-
-    case 'get_insights': {
+    case 'get_indexed_symbol_insights': {
       const symbols = args?.symbols as string[] | undefined;
       const queries = args?.queries as any[] | undefined;
       const projectPath = args?.project_path ? String(args.project_path) : undefined;

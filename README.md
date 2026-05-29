@@ -188,7 +188,7 @@ Here is a full breakdown of the tools exposed by the `code-inspection-mcp-gatewa
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-#### `get_symbols`
+#### `get_symbol_definitions_from_file`
 - **Description**: Squeezes code either from a raw string or read directly from disk.
 - **Inputs**:
   - `code` (string, optional): The raw code contents to squeeze.
@@ -204,7 +204,7 @@ Prunes non-structural elements (comments, import blocks, class private variables
     - `outline` (boolean, default `false`): If true, returns a clean hierarchical structural outline format.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run get_symbols '{"filePath": "src/processor.ts", "options": {"aggressiveness": "balanced"}}'
+  code-inspection-mcp run get_symbol_definitions_from_file '{"filePath": "src/processor.ts", "options": {"aggressiveness": "balanced"}}'
   ```
 
 ---
@@ -333,13 +333,7 @@ Automates codebase layout and rule adjustments dynamically resolved from registe
 
 Provides atomic batch operations and symbol usage tracking across multiple files.
 
-#### `insight_reference_tracker`
-- **Description**: Scans symbols across code definition blocks and markdown documents to track references.
-- **Inputs**:
-  - `symbol` (string): Symbol to trace.
-  - `project_path` (string, optional): Root folder path.
-
-#### `get_insights`
+#### `get_indexed_symbol_insights`
 - **Description**: Bundles definitions, usages, and docs tracing queries for multiple symbols into a single request.
 - **Inputs**:
   - `symbols` (string[]): List of symbols.

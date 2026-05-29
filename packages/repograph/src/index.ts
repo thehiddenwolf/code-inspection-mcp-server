@@ -310,16 +310,70 @@ const TOOLS: ToolDef[] = [
 
       const context = getRepoContext(filePath);
       const { graph, indexedFiles } = context;
-      const result = graph.query({ query, filePath, scope });
+      graph.query({ query, filePath, scope });
 
       const root = context.currentProjectRoot || lastActiveRoot;
-      const codeReferences = findCodeReferences(query, root, indexedFiles);
+
+      const definitions = graph.findDefinitions(query, filePath).map((node) => {
+        let lineOfCode = `[Definition] ${node.type} ${node.label}`;
+        const lineNumber = (node.metadata?.line as number) ?? 1;
+        const fullPath = path.isAbsolute(node.filePath) ? node.filePath : path.join(root, node.filePath);
+        try {
+          if (fs.existsSync(fullPath)) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            const lines = content.split(/\r?\n/);
+            const lineIndex = lineNumber - 1;
+            if (lines[lineIndex] !== undefined) {
+              lineOfCode = lines[lineIndex].trim();
+            }
+          }
+        } catch {}
+
+        return {
+          file: node.filePath,
+          class_or_table: 'None',
+          method: 'None',
+          line_number: lineNumber,
+          line_of_code: lineOfCode,
+          is_definition: true,
+          symbol_type: node.type,
+        };
+      });
+
+      let targetFiles = indexedFiles;
+      if (filePath) {
+        const absTarget = path.isAbsolute(filePath)
+          ? filePath
+          : path.resolve(root, filePath);
+
+        targetFiles = new Set(
+          Array.from(indexedFiles).filter((f) => {
+            const absF = path.isAbsolute(f) ? f : path.resolve(root, f);
+            try {
+              const stat = fs.statSync(absTarget);
+              if (stat.isDirectory()) {
+                return absF.startsWith(absTarget + path.sep) || absF === absTarget;
+              } else {
+                return absF === absTarget;
+              }
+            } catch {
+              return absF === absTarget;
+            }
+          })
+        );
+      }
+
+      const usages = findCodeReferences(query, root, targetFiles).map((ref) => ({
+        ...ref,
+        is_definition: false,
+        symbol_type: 'reference',
+      }));
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(codeReferences, null, 2),
+            text: JSON.stringify([...definitions, ...usages], null, 2),
           },
         ],
       };

@@ -83,50 +83,13 @@ The function \`greet\` is internal.
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  // ── insight_reference_tracker ─────────────────────────────────────────────
 
-  describe('insight_reference_tracker', () => {
-    it('tracks definitions, usages, and documentation mappings for a symbol', async () => {
-      const response = await client.callTool({
-        name: 'insight_reference_tracker',
-        arguments: {
-          symbol: 'Greeter',
-          project_path: tempDir,
-          include_docs: true,
-        },
-      });
+  // ── get_indexed_symbol_insights ───────────────────────────────────────────
 
-      expect(response).toBeDefined();
-      expect(response.content).toBeDefined();
-      expect(response.content[0].type).toBe('text');
-
-      const data = JSON.parse(response.content[0].text);
-      expect(data.symbol).toBe('Greeter');
-      
-      // Definitions
-      expect(data.definitions).toBeDefined();
-      expect(data.definitions.length).toBeGreaterThan(0);
-      expect(data.definitions.some((d: any) => d.file.includes('main.py'))).toBe(true);
-
-      // Usages
-      expect(data.usages).toBeDefined();
-      expect(data.usages.length).toBeGreaterThan(0);
-      expect(data.usages.some((u: any) => u.file.includes('app.ts'))).toBe(true);
-
-      // Documentation mappings
-      expect(data.documentation_mappings).toBeDefined();
-      expect(data.documentation_mappings.length).toBeGreaterThan(0);
-      expect(data.documentation_mappings[0].file).toContain('README.md');
-      expect(data.documentation_mappings[0].line_content).toContain('Greeter');
-    });
-  });
-
-  // ── get_insights ──────────────────────────────────────────────────────────
-
-  describe('get_insights', () => {
+  describe('get_indexed_symbol_insights', () => {
     it('combines multiple checks into a single result', async () => {
       const response = await client.callTool({
-        name: 'get_insights',
+        name: 'get_indexed_symbol_insights',
         arguments: {
           symbols: ['greet'],
           queries: [
@@ -253,10 +216,10 @@ The function \`greet\` is internal.
 
   // ── outline mode ──────────────────────────────────────────────────────────
 
-  describe('get_symbols (outline mode)', () => {
+  describe('get_symbol_definitions_from_file (outline mode)', () => {
     it('returns a clean outline of declarations instead of passes', async () => {
       const response = await client.callTool({
-        name: 'get_symbols',
+        name: 'get_symbol_definitions_from_file',
         arguments: {
           filePath: path.join(tempDir, 'main.py'),
           options: {
@@ -280,7 +243,7 @@ The function \`greet\` is internal.
       const mainContext = (server as any).setRequestHandler ? null : undefined; // server is accessible
       // We can just call getCallHierarchy directly or construct mock call edges in the active graph
       // Let's retrieve the gateway's internal graph context for tempDir
-      // In packages/mcp-gateway/src/index.ts, repoContexts is private, but we can query it using get_insights or direct imports
+      // In packages/mcp-gateway/src/index.ts, repoContexts is private, but we can query it using get_indexed_symbol_insights or direct imports
       // Better yet, we can register call edges by indexing a file that has calling nodes, or simply add edges to the graph.
       // Wait, we can test getCallHierarchy's traversal logic directly in the gateway by executing a call through the client
       // Let's add mock symbol nodes and call edges directly to test the tool
@@ -343,6 +306,58 @@ The function \`greet\` is internal.
 
       // Clean up cycle test files
       fs.rmSync(cycleTempDir, { recursive: true, force: true });
+    });
+  });
+
+  // ── find_indexed_symbol_references ─────────────────────────────────────────
+
+  describe('find_indexed_symbol_references', () => {
+    it('returns augmented references globally including definitions and usages', async () => {
+      const response = await client.callTool({
+        name: 'find_indexed_symbol_references',
+        arguments: {
+          query: 'Greeter',
+        },
+      });
+
+      expect(response).toBeDefined();
+      expect(response.content).toBeDefined();
+      expect(response.content[0].type).toBe('text');
+
+      const references = JSON.parse(response.content[0].text);
+      expect(Array.isArray(references)).toBe(true);
+      expect(references.length).toBeGreaterThan(1);
+
+      // Check for definition in main.py
+      const def = references.find((r: any) => r.is_definition === true && r.file.includes('main.py'));
+      expect(def).toBeDefined();
+      expect(def.symbol_type).toBe('class');
+
+      // Check for usage/reference in app.ts
+      const ref = references.find((r: any) => r.is_definition === false && r.file.includes('app.ts') && r.line_of_code.includes('new Greeter'));
+      expect(ref).toBeDefined();
+      expect(ref.symbol_type).toBe('reference');
+    });
+
+    it('returns scoped references when file_path is provided', async () => {
+      const response = await client.callTool({
+        name: 'find_indexed_symbol_references',
+        arguments: {
+          query: 'Greeter',
+          file_path: path.join(tempDir, 'app.ts'),
+        },
+      });
+
+      expect(response).toBeDefined();
+      const references = JSON.parse(response.content[0].text);
+      expect(Array.isArray(references)).toBe(true);
+
+      // Scoped search to app.ts should only return entries in app.ts
+      expect(references.length).toBeGreaterThanOrEqual(1);
+      expect(references.every((r: any) => r.file.includes('app.ts'))).toBe(true);
+
+      const usage = references.find((r: any) => r.is_definition === false && r.line_of_code.includes('new Greeter'));
+      expect(usage).toBeDefined();
     });
   });
 });
