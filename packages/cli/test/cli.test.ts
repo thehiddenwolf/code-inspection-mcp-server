@@ -43,10 +43,10 @@ describe('code-inspection-mcp CLI', () => {
     expect(tools[0]).toHaveProperty('inputSchema');
   });
 
-  it('should include quick_definition in list', () => {
+  it('should include get_symbols in list', () => {
     const { stdout } = runCli('list');
     const tools = JSON.parse(stdout);
-    const squeeze = tools.find((t: { name: string }) => t.name === 'quick_definition');
+    const squeeze = tools.find((t: { name: string }) => t.name === 'get_symbols');
     expect(squeeze).toBeDefined();
     expect(squeeze.description).toContain('Read high-level symbol');
   });
@@ -70,12 +70,12 @@ describe('code-inspection-mcp CLI', () => {
   });
 
   it('should run a tool and return its output', () => {
-    const { stdout } = runCli('run quick_definition \'{"code":"const x = 1;","language":"typescript"}\'');
+    const { stdout } = runCli('run get_symbols \'{"code":"const x = 1;","language":"typescript"}\'');
     expect(stdout).toContain('const x = 1;');
   });
 
   it('should run a tool with JSON output format options', () => {
-    const { stdout } = runCli('run quick_definition \'{"code":"const x = 1;","language":"typescript","options":{"output_format":"json"}}\'');
+    const { stdout } = runCli('run get_symbols \'{"code":"const x = 1;","language":"typescript","options":{"output_format":"json"}}\'');
     expect(() => JSON.parse(stdout)).not.toThrow();
     const result = JSON.parse(stdout);
     expect(result.original).toBe('const x = 1;');
@@ -88,7 +88,7 @@ describe('code-inspection-mcp CLI', () => {
   });
 
   it('should handle error for invalid JSON args', () => {
-    const { stdout, stderr } = runCli('run quick_definition not-json');
+    const { stdout, stderr } = runCli('run get_symbols not-json');
     expect(stderr).toContain('Invalid JSON arguments');
   });
 });

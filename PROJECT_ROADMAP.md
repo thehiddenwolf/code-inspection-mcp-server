@@ -28,7 +28,7 @@
 ### 2. `@hermes/token-squeezer` — AST Context Reduction Engine
 **What it does:** Parses source code into skeletons using AST nodes or fallback regex patterns to strip bodies, comments, and imports based on aggressiveness level.
 
-**MCP tools provided:** `quick_definition`
+**MCP tools provided:** `get_symbols`
 
 **Key design decisions:**
 - Three aggressiveness levels (conservative, balanced, aggressive)

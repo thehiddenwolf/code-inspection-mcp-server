@@ -253,10 +253,10 @@ The function \`greet\` is internal.
 
   // ── outline mode ──────────────────────────────────────────────────────────
 
-  describe('quick_definition (outline mode)', () => {
+  describe('get_symbols (outline mode)', () => {
     it('returns a clean outline of declarations instead of passes', async () => {
       const response = await client.callTool({
-        name: 'quick_definition',
+        name: 'get_symbols',
         arguments: {
           filePath: path.join(tempDir, 'main.py'),
           options: {
