@@ -311,9 +311,9 @@ The function \`greet\` is internal.
     });
   });
 
-  // ── repograph_get_dependencies & cycle detection ──────────────────────────
+  // ── get_indexed_symbol_dependencies & cycle detection ──────────────────────
 
-  describe('repograph_get_dependencies & cycle detection', () => {
+  describe('get_indexed_symbol_dependencies & cycle detection', () => {
     it('analyzes imports and reports circular dependency cycles', async () => {
       // Set up a circular reference temp directory
       const cycleTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-cycle-test-'));

@@ -236,7 +236,7 @@ Traces and constructs incoming and outgoing call hierarchies for a function/meth
 }
 ```
 
-### 3.4 `repograph_get_dependencies`
+### 3.4 `get_indexed_symbol_dependencies`
 
 Analyzes codebase imports to list file dependencies and identify circular dependency cycles.
 

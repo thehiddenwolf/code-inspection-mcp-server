@@ -255,7 +255,7 @@ Scans project files to construct a relational knowledge index mapping classes, i
   - `symbol` (string): Target function name.
   - `direction` (enum: `'incoming'`, `'outgoing'`, `'both'`).
 
-#### `repograph_get_dependencies`
+#### `get_indexed_symbol_dependencies`
 - **Description**: Analyzes imports to map file-level dependencies and detect circular imports.
 - **Inputs**:
   - `project_path` (string, optional).

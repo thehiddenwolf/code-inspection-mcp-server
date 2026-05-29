@@ -646,7 +646,7 @@ export const TOOLS: ToolDef[] = [
     }
   },
   {
-    name: 'repograph_get_dependencies',
+    name: 'get_indexed_symbol_dependencies',
     description: 'Analyze codebase imports to list file dependencies and pinpoint circular dependency paths.',
     version: '0.1.0',
     inputSchema: {
@@ -984,7 +984,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
 
-    case 'repograph_get_dependencies': {
+    case 'get_indexed_symbol_dependencies': {
       const projectPath = args?.project_path ? String(args.project_path) : undefined;
       const context = getRepoContext(projectPath);
       const result = getDependencyReport(context.graph);
