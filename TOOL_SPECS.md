@@ -175,7 +175,7 @@ Indexes a codebase folder into the knowledge graph.
 }
 ```
 
-### 3.2 `repograph_query`
+### 3.2 `find_indexed_symbol_references`
 
 Query the code knowledge graph for code relationships, declarations, and structures.
 

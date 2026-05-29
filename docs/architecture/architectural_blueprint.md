@@ -218,7 +218,7 @@ architecture_shepherd_load_manifest
 architecture_shepherd_check
 architecture_shepherd_check_diff
 architecture_shepherd.suggest_manifest
-repograph_query
+find_indexed_symbol_references
 repograph.register_intent
 repograph.rescan
 repograph.update
@@ -351,7 +351,7 @@ Input Code
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `repograph_query` | `{ query_type, file_path?, entity_name?, ... }` | `{ results, graph_summary }` |
+| `find_indexed_symbol_references` | `{ query_type, file_path?, entity_name?, ... }` | `{ results, graph_summary }` |
 | `repograph.update` | `{ changes, full_rescan? }` | `{ entities_added, edges_added }` |
 | `repograph.register_intent` | `{ intent, file_paths[], confidence? }` | `{ success, intent_id }` |
 | `repograph.rescan` | `{ codebase_path?, include_patterns? }` | `{ entities_count, relationships_count }` |

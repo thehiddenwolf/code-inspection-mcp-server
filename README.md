@@ -242,7 +242,7 @@ Scans project files to construct a relational knowledge index mapping classes, i
 - **Inputs**:
   - `path` (string): Directory folder to index.
 
-#### `repograph_query`
+#### `find_indexed_symbol_references`
 - **Description**: Query indexed symbols or structures.
 - **Inputs**:
   - `query` (string): Natural language or symbol name to query.

@@ -279,9 +279,9 @@ interface ToolDef extends McpToolDefinition {
 }
 
 const TOOLS: ToolDef[] = [
-  // ── repograph_query ───────────────────────────────────────────────────────
+  // ── find_indexed_symbol_references ─────────────────────────────────────────
   {
-    name: 'repograph_query',
+    name: 'find_indexed_symbol_references',
     description: 'Query the codebase knowledge graph. Searches nodes by name/label and returns the connected subgraph via BFS traversal.',
     inputSchema: {
       type: 'object',

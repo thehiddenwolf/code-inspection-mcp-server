@@ -358,7 +358,7 @@ export const TOOLS: ToolDef[] = [
 
   // ── RepoGraph ─────────────────────────────────────────────────────────────
   {
-    name: 'repograph_query',
+    name: 'find_indexed_symbol_references',
     description: 'Query the code knowledge graph for code relationships and structures.',
     version: '0.1.0',
     inputSchema: {
@@ -765,7 +765,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── RepoGraph ──
-    case 'repograph_query': {
+    case 'find_indexed_symbol_references': {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
       const scope = (args?.scope) ?? 'project';

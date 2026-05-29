@@ -94,9 +94,9 @@ Calculates cyclomatic complexity, lines of code (LOC) impact, and routes subtask
 - **Output:**
   - `subtasks` (array): Broken down subtasks, each labeled with a recommended LLM tier (`premium` vs. `cheap`) and complexity score.
 
-### 3.4 RepoGraph (`repograph_query` / `index_codebase`)
+### 3.4 RepoGraph (`find_indexed_symbol_references` / `index_codebase`)
 Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / DeusData parsing backend).
-- **Input Schema (`query`):**
+- **Input Schema:**
   - `query` (string, required): Structured/natural language query.
   - `file_path` (string, optional): Scoping path.
 - **Output:**
@@ -117,7 +117,7 @@ Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / De
  [Microtasks Graph] ──────────► [Route to cheap / premium models]
          │
          ├─► (2) pattern_miner_find_clones()   --> Detect and prevent duplicates
-         ├─► (3) repograph_query()             --> Fetch relational context
+         ├─► (3) find_indexed_symbol_references() --> Fetch relational context
          ├─► (4) token_squeezer_squeeze()      --> Compress context file reads
          │
          ▼

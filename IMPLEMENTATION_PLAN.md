@@ -221,13 +221,13 @@ Rationale: Codebase-Memory is MIT-licensed, production-ready, supports 155 langu
 
 | Tool | Input | Output | Backend |
 |------|-------|--------|---------|
-| `repograph_query` | `{ query_type, file_path?, entity_name?, entity_id?, query?, relationship_type?, intent_filter?, depth?, limit? }` | `{ results, graph_summary }` | Codebase-Memory + intent DB |
+| `find_indexed_symbol_references` | `{ query_type, file_path?, entity_name?, entity_id?, query?, relationship_type?, intent_filter?, depth?, limit? }` | `{ results, graph_summary }` | Codebase-Memory + intent DB |
 | `repograph_update` | `{ changes: Change[], full_rescan?: boolean }` | `{ entities_added, ... }` | Codebase-Memory |
 | `repograph_register_intent` | `{ intent: string, file_paths: string[], confidence?: number }` | `{ success, intent_id }` | Companion intent DB |
 | `repograph_rescan` | `{ codebase_path?: string, include_patterns?, exclude_patterns? }` | `{ entities_count, relationships_count }` | Codebase-Memory |
 
 ### Exit Criteria
-- `repograph_query` returns entities and relationships for any file in a codebase
+- `find_indexed_symbol_references` returns entities and relationships for any file in a codebase
 - `repograph_register_intent` persists and retrieves intent tags
 - Companion DB merges with Codebase-Memory results in query responses
 
