@@ -575,6 +575,15 @@ const TOOLS: ToolDef[] = [
       const { graph, indexedFiles } = context;
 
       const repository = repositoryArg ?? path.basename(path.resolve(dirPath)) ?? 'default';
+
+      // Delete all existing entries related to that repository before adding new index entries
+      const repoFileNodes = graph.getAllNodes().filter(n => n.type === 'file' && (n.repository ?? 'default') === repository);
+      for (const n of repoFileNodes) {
+        indexedFiles.delete(n.filePath);
+      }
+      graph.clearRepository(repository);
+      context.store.clearRepository(repository);
+
       const repoIndexer = new FileIndexer(context.store, repository);
 
       const project = repoIndexer.indexDirectory(dirPath, undefined, repository);

@@ -62,6 +62,34 @@ export class GraphEngine {
     return result;
   }
 
+  clearRepository(repository: string): void {
+    // 1. Delete nodes of this repository and their edge mapping placeholders
+    for (const [id, node] of this.nodes.entries()) {
+      if ((node.repository ?? 'default') === repository) {
+        this.nodes.delete(id);
+        this.edgesOut.delete(id);
+        this.edgesIn.delete(id);
+      }
+    }
+    // 2. Filter remaining edge arrays to remove references belonging to this repository
+    for (const [fromId, edges] of this.edgesOut.entries()) {
+      const filtered = edges.filter((e) => (e.repository ?? 'default') !== repository);
+      if (filtered.length === 0) {
+        this.edgesOut.delete(fromId);
+      } else {
+        this.edgesOut.set(fromId, filtered);
+      }
+    }
+    for (const [toId, edges] of this.edgesIn.entries()) {
+      const filtered = edges.filter((e) => (e.repository ?? 'default') !== repository);
+      if (filtered.length === 0) {
+        this.edgesIn.delete(toId);
+      } else {
+        this.edgesIn.set(toId, filtered);
+      }
+    }
+  }
+
   // ── Edge Management ──────────────────────────────────────────────────────
 
   addEdge(edge: GraphEdge): void {

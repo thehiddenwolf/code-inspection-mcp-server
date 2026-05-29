@@ -326,5 +326,16 @@ describe('GraphEngine', () => {
       expect(resultB.nodes).toHaveLength(1);
       expect(resultB.nodes[0]!.id).toBe('repoB::sym:render@/src/main.ts');
     });
+
+    it('clears repository-scoped nodes and edges', () => {
+      // Clear repoA
+      graph.clearRepository('repoA');
+      
+      const allNodes = graph.getAllNodes();
+      // repoA nodes should be removed, repoB nodes should remain
+      expect(allNodes.some(n => n.repository === 'repoA')).toBe(false);
+      expect(allNodes.some(n => n.repository === 'repoB')).toBe(true);
+      expect(allNodes).toHaveLength(2); // repoB file + repoB render
+    });
   });
 });

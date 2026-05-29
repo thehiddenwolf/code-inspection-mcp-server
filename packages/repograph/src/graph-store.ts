@@ -114,6 +114,9 @@ export interface GraphStore {
 
   /** Drop all data and re-create tables (for full re-index). */
   clear(): void;
+
+  /** Clear all data (nodes, edges, indexed files) scoped to a given repository. */
+  clearRepository(repository?: string): void;
 }
 
 // ─── SQLite Graph Store ───────────────────────────────────────────────────────
@@ -532,6 +535,17 @@ export class SqliteGraphStore implements GraphStore {
     } catch { /* FTS5 may not exist */ }
     log.info('Graph store cleared');
   }
+
+  clearRepository(repository = 'default'): void {
+    const db = this.checkInit();
+    try {
+      db.prepare('DELETE FROM nodes_fts WHERE id IN (SELECT id FROM nodes WHERE repository = ?)').run(repository);
+    } catch { /* FTS5 may not exist */ }
+    db.prepare('DELETE FROM edges WHERE repository = ?').run(repository);
+    db.prepare('DELETE FROM nodes WHERE repository = ?').run(repository);
+    db.prepare('DELETE FROM indexed_files WHERE repository = ?').run(repository);
+    log.info(`Graph store repository cleared: ${repository}`);
+  }
 }
 
 // ─── JSON Fallback Store ───────────────────────────────────────────────────────
@@ -768,6 +782,20 @@ export class JsonGraphStore implements GraphStore {
     };
     this.save();
     log.info('JSON graph store cleared');
+  }
+
+  clearRepository(repository = 'default'): void {
+    this.checkInit();
+    this.data.nodes = this.data.nodes.filter((n) => (n.repository ?? 'default') !== repository);
+    this.data.edges = this.data.edges.filter((e) => (e.repository ?? 'default') !== repository);
+    const prefix = `${repository}::`;
+    for (const key of Object.keys(this.data.indexedFiles)) {
+      if (key.startsWith(prefix)) {
+        delete this.data.indexedFiles[key];
+      }
+    }
+    this.save();
+    log.info(`JSON graph store repository cleared: ${repository}`);
   }
 }
 

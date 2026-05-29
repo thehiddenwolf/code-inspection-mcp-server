@@ -845,6 +845,15 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const { graph, indexedFiles, store } = context;
 
       const repository = repositoryArg ?? path.basename(path.resolve(dirPath)) ?? 'default';
+
+      // Delete all existing entries related to that repository before adding new index entries
+      const repoFileNodes = graph.getAllNodes().filter(n => n.type === 'file' && (n.repository ?? 'default') === repository);
+      for (const n of repoFileNodes) {
+        indexedFiles.delete(n.filePath);
+      }
+      graph.clearRepository(repository);
+      store.clearRepository(repository);
+
       const repoIndexer = new FileIndexer(store, repository);
 
       const project = repoIndexer.indexDirectory(dirPath, undefined, repository);
