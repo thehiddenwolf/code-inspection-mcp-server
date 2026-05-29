@@ -267,7 +267,7 @@ interface ToolDef extends McpToolDefinition {
 export const TOOLS: ToolDef[] = [
   // ── TokenSqueezer ──────────────────────────────────────────────────────────
   {
-    name: 'token_squeezer_read_symbols',
+    name: 'quick_definition',
     description: 'Read high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.',
     version: '0.1.0',
     inputSchema: {
@@ -687,7 +687,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
   switch (name) {
     // ── TokenSqueezer ──
-    case 'token_squeezer_read_symbols': {
+    case 'quick_definition': {
       let code = args?.code ? String(args.code) : '';
       let lang = args?.language ? String(args.language) : '';
       const filePath = args?.filePath ? String(args.filePath) : '';

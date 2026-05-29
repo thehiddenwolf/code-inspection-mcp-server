@@ -21,7 +21,7 @@ This document defines the complete, production-ready specifications for the Mode
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-### 1.1 `token_squeezer_read_symbols`
+### 1.1 `quick_definition`
 
 Reads high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.
 

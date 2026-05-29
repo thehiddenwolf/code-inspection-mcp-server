@@ -188,7 +188,7 @@ Here is a full breakdown of the tools exposed by the `code-inspection-mcp-gatewa
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-#### `token_squeezer_read_symbols`
+#### `quick_definition`
 - **Description**: Squeezes code either from a raw string or read directly from disk.
 - **Inputs**:
   - `code` (string, optional): The raw code contents to squeeze.
@@ -204,7 +204,7 @@ Prunes non-structural elements (comments, import blocks, class private variables
     - `outline` (boolean, default `false`): If true, returns a clean hierarchical structural outline format.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run token_squeezer_read_symbols '{"filePath": "src/processor.ts", "options": {"aggressiveness": "balanced"}}'
+  code-inspection-mcp run quick_definition '{"filePath": "src/processor.ts", "options": {"aggressiveness": "balanced"}}'
   ```
 
 ---
