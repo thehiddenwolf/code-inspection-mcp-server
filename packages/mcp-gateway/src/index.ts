@@ -641,108 +641,6 @@ export const TOOLS: ToolDef[] = [
         project_path: { type: 'string', description: 'Optional project root path' }
       }
     }
-  },
-  // ── Alias Tools (For Compatibility) ────────────────────────────────────────
-  {
-    name: 'repograph_index',
-    description: 'Index a codebase into the knowledge graph for querying.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Root path of the codebase to index' },
-        project_path: { type: 'string', description: 'Alternative root path of the codebase to index' }
-      }
-    }
-  },
-  {
-    name: 'repograph_query',
-    description: 'Query the codebase knowledge graph for definitions and references.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'Search term to find in node IDs/labels' },
-        file_path: { type: 'string', description: 'Optional file path to narrow the search scope' },
-        scope: {
-          type: 'string',
-          enum: ['file', 'module', 'project'],
-          default: 'project',
-          description: 'Query scope'
-        }
-      },
-      required: ['query']
-    }
-  },
-  {
-    name: 'token_squeezer_read_symbols',
-    description: 'Read high-level symbol declarations (classes, functions, interfaces, imports) or the full file if it is small enough.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        code: { type: 'string', description: 'Source code to squeeze (ignored if filePath is provided)' },
-        language: {
-          type: 'string',
-          enum: ['javascript', 'typescript', 'python', 'go', 'jsx', 'tsx'],
-          description: 'Source language (auto-detected if filePath is provided)'
-        },
-        filePath: {
-          type: 'string',
-          description: 'Absolute path to the file to squeeze directly from disk (alternative to passing code)'
-        },
-        options: {
-          type: 'object',
-          properties: {
-            preserve_comments: { type: 'boolean', default: false },
-            preserve_imports: { type: 'boolean', default: true },
-            aggressiveness: {
-              type: 'string',
-              enum: ['conservative', 'balanced', 'aggressive'],
-              default: 'balanced'
-            },
-            max_tokens: { type: 'integer', description: 'Maximum token target' },
-            include_private: { type: 'boolean', default: false },
-            output_format: {
-              type: 'string',
-              enum: ['text', 'json', 'both'],
-              default: 'both'
-            },
-            outline: {
-              type: 'boolean',
-              default: false,
-              description: 'Return a clean hierarchical structural outline of the code symbols'
-            }
-          }
-        }
-      }
-    }
-  },
-  {
-    name: 'repograph_get_call_hierarchy',
-    description: 'Get call hierarchy tree (incoming and outgoing calls) for a symbol.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        symbol: { type: 'string', description: 'Name of the function or method' },
-        direction: { type: 'string', enum: ['incoming', 'outgoing', 'both'], default: 'both', description: 'Direction to trace calls' },
-        max_depth: { type: 'integer', default: 3, description: 'Maximum recursion depth' },
-        project_path: { type: 'string', description: 'Optional project root path' }
-      },
-      required: ['symbol']
-    }
-  },
-  {
-    name: 'repograph_get_dependencies',
-    description: 'Analyze codebase imports to list file dependencies and pinpoint circular dependency paths.',
-    version: '0.1.0',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_path: { type: 'string', description: 'Optional project root path' }
-      }
-    }
   }
 ];
 
@@ -775,7 +673,6 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
   switch (name) {
     // ── TokenSqueezer ──
-    case 'token_squeezer_read_symbols':
     case 'get_symbol_definitions_from_file': {
       let code = args?.code ? String(args.code) : '';
       let lang = args?.language ? String(args.language) : '';
@@ -854,7 +751,6 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
 
     // ── RepoGraph ──
-    case 'repograph_query':
     case 'find_indexed_symbol_references': {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
@@ -923,9 +819,8 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify([...definitions, ...usages], null, 2);
       break;
     }
-    case 'repograph_index':
     case 'index_codebase': {
-      const dirPath = String(args?.path ?? args?.project_path ?? '');
+      const dirPath = String(args?.path ?? '');
       const context = getRepoContext(dirPath);
       const { graph, indexer, indexedFiles, store } = context;
       const project = indexer.indexDirectory(dirPath);
@@ -1098,7 +993,6 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
 
-    case 'repograph_get_call_hierarchy':
     case 'get_indexed_symbol_tree': {
       const symbol = String(args?.symbol ?? '');
       const direction = (args?.direction as 'incoming' | 'outgoing' | 'both') ?? 'both';
@@ -1115,7 +1009,6 @@ export async function executeTool(name: string, args: any): Promise<string> {
       break;
     }
 
-    case 'repograph_get_dependencies':
     case 'get_indexed_symbol_dependencies': {
       const projectPath = args?.project_path ? String(args.project_path) : undefined;
       const context = getRepoContext(projectPath);
