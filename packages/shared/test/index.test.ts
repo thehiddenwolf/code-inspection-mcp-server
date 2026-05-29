@@ -1190,4 +1190,236 @@ describe('ServerConfig & ConfigLoader', () => {
   });
 });
 
+import rpgPack from '../src/packs/rpg.js';
+
+describe('RPG Language Pack', () => {
+  it('is registered in default packs', () => {
+    const registry = LanguagePackRegistry.getInstance();
+    if (!registry.lookup('.rpgle')) {
+      registry.register(rpgPack);
+    }
+    expect(registry.lookup('.rpgle')).toBe(rpgPack);
+    expect(registry.lookup('.sqlrpgle')).toBe(rpgPack);
+    expect(registry.lookup('.rpg')).toBe(rpgPack);
+    expect(registry.lookup('rpg')).toBe(rpgPack);
+  });
+
+  it('correctly matches RPG comments', () => {
+    const commentDetect = rpgPack.regexPatterns?.commentDetection;
+    expect(commentDetect).toBeDefined();
+    if (!commentDetect) return;
+
+    // Fixed-form comment (asterisk in column 7)
+    const fixedComment = '      * This is a fixed form comment';
+    expect(fixedComment.match(commentDetect)).toBeTruthy();
+
+    // Free-form comment
+    const freeComment = '    // This is a free form comment';
+    expect(freeComment.match(commentDetect)).toBeTruthy();
+
+    // Normal line (not a comment)
+    const normalLine = '     C     MYVAL         IFEQ      \'1\'';
+    const matchNormal = normalLine.match(commentDetect);
+    expect(matchNormal).toBeNull();
+  });
+
+  it('extracts imports correctly', () => {
+    const code = `
+      /copy qsysinc/qrpglesrc,uuid
+      /include QCPYSRC,MEMBER
+    `;
+    const imports = rpgPack.repograph?.extractImports(code, 'test.rpgle');
+    expect(imports).toBeDefined();
+    expect(imports).toHaveLength(2);
+    expect(imports?.[0].source).toBe('qsysinc/qrpglesrc,uuid');
+    expect(imports?.[1].source).toBe('QCPYSRC,MEMBER');
+  });
+
+  it('extracts declarations correctly', () => {
+    const code = `
+     P MyProc            B
+     D MyVar           S             10A
+      dcl-proc FreeProc;
+      dcl-s sVar varchar(50);
+      dcl-ds dsVar;
+    `;
+    const declarations = rpgPack.repograph?.extractDeclarations(code, 'test.rpgle');
+    expect(declarations).toBeDefined();
+    expect(declarations).toHaveLength(5);
+    expect(declarations?.map(d => d.name)).toEqual([
+      'FreeProc',
+      'MyProc',
+      'sVar',
+      'dsVar',
+      'MyVar',
+    ]);
+  });
+
+  it('extracts relationships correctly', () => {
+    const code = `
+      dcl-proc FreeProc;
+        callp AnotherProc();
+        exsr MySubroutine;
+      end-proc;
+    `;
+    const relationships = rpgPack.repograph?.extractRelationships(code, 'test.rpgle');
+    expect(relationships).toBeDefined();
+    expect(relationships).toHaveLength(2);
+    expect(relationships?.[0]).toEqual({
+      from: 'sym:FreeProc@test.rpgle',
+      to: 'sym:AnotherProc',
+      type: 'calls',
+    });
+    expect(relationships?.[1]).toEqual({
+      from: 'sym:FreeProc@test.rpgle',
+      to: 'sym:MySubroutine',
+      type: 'calls',
+    });
+  });
+
+  it('squeezes procedure bodies correctly', () => {
+    const freeCode = 'dcl-proc FreeProc;\n  stmt1;\n  stmt2;\nend-proc;';
+    const fixedCode = '     P MyProc            B\n  stmt1;\n  stmt2;\n     P                   E';
+
+    let squeezedFree = freeCode;
+    for (const pat of rpgPack.squeezer?.bodyPatterns || []) {
+      squeezedFree = squeezedFree.replace(pat.pattern, pat.replacement);
+    }
+    expect(squeezedFree).toContain('dcl-proc FreeProc;\n    ...\nend-proc;');
+
+    let squeezedFixed = fixedCode;
+    for (const pat of rpgPack.squeezer?.bodyPatterns || []) {
+      squeezedFixed = squeezedFixed.replace(pat.pattern, pat.replacement);
+    }
+    expect(squeezedFixed).toContain('     P MyProc            B\n    ...\nP                   E');
+  });
+
+  it('defines solidEnforcer rules and lintFix commands', () => {
+    expect(rpgPack.solidEnforcer).toBeDefined();
+    expect(rpgPack.solidEnforcer?.classRegex).toBeDefined();
+    expect(rpgPack.solidEnforcer?.interfaceRegex).toBeDefined();
+    expect(rpgPack.solidEnforcer?.newInstantiationRegex).toBeDefined();
+
+    expect(rpgPack.lintFix).toBeDefined();
+    expect(rpgPack.lintFix?.commands).toContainEqual(['rpgle-format', '--write']);
+    expect(rpgPack.lintFix?.commands).toContainEqual(['rpgle-lint', '--fix']);
+  });
+});
+
+import cobolPack from '../src/packs/cobol.js';
+import bashPack from '../src/packs/bash.js';
+import powershellPack from '../src/packs/powershell.js';
+
+describe('COBOL Language Pack', () => {
+  it('is registered in default packs', () => {
+    const registry = LanguagePackRegistry.getInstance();
+    if (!registry.lookup('.cbl')) {
+      registry.register(cobolPack);
+    }
+    expect(registry.lookup('.cbl')).toBe(cobolPack);
+    expect(registry.lookup('.cob')).toBe(cobolPack);
+  });
+
+  it('correctly matches COBOL comments', () => {
+    const commentDetect = cobolPack.regexPatterns?.commentDetection;
+    expect(commentDetect).toBeDefined();
+    if (!commentDetect) return;
+
+    const fixedComment = '      * THIS IS A COMMENT';
+    expect(fixedComment.match(commentDetect)).toBeTruthy();
+
+    const freeComment = '      *> THIS IS A FREE COMMENT';
+    expect(freeComment.match(commentDetect)).toBeTruthy();
+  });
+
+  it('extracts declarations and imports', () => {
+    const code = `
+       PROGRAM-ID. HELLO-WORLD.
+       PROCEDURE DIVISION.
+       100-INITIALIZE.
+           COPY "MYCOPY".
+    `;
+    const declarations = cobolPack.repograph?.extractDeclarations(code, 'test.cbl');
+    expect(declarations).toBeDefined();
+    expect(declarations).toHaveLength(2);
+    expect(declarations?.map(d => d.name)).toEqual(['HELLO-WORLD', '100-INITIALIZE']);
+
+    const imports = cobolPack.repograph?.extractImports(code, 'test.cbl');
+    expect(imports).toBeDefined();
+    expect(imports).toHaveLength(1);
+    expect(imports?.[0].source).toBe('MYCOPY');
+  });
+});
+
+describe('Bash Language Pack', () => {
+  it('is registered in default packs', () => {
+    const registry = LanguagePackRegistry.getInstance();
+    if (!registry.lookup('.sh')) {
+      registry.register(bashPack);
+    }
+    expect(registry.lookup('.sh')).toBe(bashPack);
+  });
+
+  it('correctly matches Bash comments and ignores shebangs', () => {
+    const commentDetect = bashPack.regexPatterns?.commentDetection;
+    expect(commentDetect).toBeDefined();
+    if (!commentDetect) return;
+
+    const comment = '# This is a comment';
+    expect(comment.match(commentDetect)).toBeTruthy();
+
+    const shebang = '#!/bin/bash';
+    expect(shebang.match(commentDetect)).toBeNull();
+  });
+
+  it('extracts declarations and squeezes function bodies', () => {
+    const code = `
+      function my_func() {
+        echo "hello"
+      }
+    `;
+    const declarations = bashPack.repograph?.extractDeclarations(code, 'test.sh');
+    expect(declarations).toBeDefined();
+    expect(declarations).toHaveLength(1);
+    expect(declarations?.[0].name).toBe('my_func');
+
+    let squeezed = code;
+    for (const pat of bashPack.squeezer?.bodyPatterns || []) {
+      squeezed = squeezed.replace(pat.pattern, pat.replacement);
+    }
+    expect(squeezed).toContain('function my_func() {\n    ...\n}');
+  });
+});
+
+describe('PowerShell Language Pack', () => {
+  it('is registered in default packs', () => {
+    const registry = LanguagePackRegistry.getInstance();
+    if (!registry.lookup('.ps1')) {
+      registry.register(powershellPack);
+    }
+    expect(registry.lookup('.ps1')).toBe(powershellPack);
+  });
+
+  it('extracts declarations and relationships', () => {
+    const code = `
+      function Get-Power {
+        param($val)
+        class MyClass {}
+        Import-Module MyModule
+        Write-Host "Test"
+      }
+    `;
+    const declarations = powershellPack.repograph?.extractDeclarations(code, 'test.ps1');
+    expect(declarations).toBeDefined();
+    expect(declarations).toHaveLength(1);
+    expect(declarations?.[0].name).toBe('Get-Power');
+
+    const imports = powershellPack.repograph?.extractImports(code, 'test.ps1');
+    expect(imports).toBeDefined();
+    expect(imports).toHaveLength(1);
+    expect(imports?.[0].source).toBe('MyModule');
+  });
+});
+
+
 

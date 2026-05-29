@@ -12,6 +12,10 @@ import markdownPack from './packs/markdown.js';
 import htmlPack from './packs/html.js';
 import cssPack from './packs/css.js';
 import yamlPack from './packs/yaml.js';
+import rpgPack from './packs/rpg.js';
+import cobolPack from './packs/cobol.js';
+import bashPack from './packs/bash.js';
+import powershellPack from './packs/powershell.js';
 
 export const DEFAULT_PACKS: LanguagePack[] = [
   typescriptPack,
@@ -27,4 +31,9 @@ export const DEFAULT_PACKS: LanguagePack[] = [
   htmlPack,
   cssPack,
   yamlPack,
+  rpgPack,
+  cobolPack,
+  bashPack,
+  powershellPack,
 ];
+
