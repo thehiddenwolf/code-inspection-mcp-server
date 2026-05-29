@@ -285,4 +285,46 @@ describe('GraphEngine', () => {
       expect(graph.findDefinitions('foo')).toEqual([]);
     });
   });
+
+  // ── Multi-Repository Support ─────────────────────────────────────────────
+
+  describe('multi-repository support and segmentation', () => {
+    beforeEach(() => {
+      // Repository A
+      graph.addNode({ id: 'repoA::file:/src/main.ts', type: 'file', label: 'main.ts', filePath: '/src/main.ts', repository: 'repoA' });
+      graph.addNode({ id: 'repoA::sym:render@/src/main.ts', type: 'function', label: 'render', filePath: '/src/main.ts', repository: 'repoA' });
+
+      // Repository B
+      graph.addNode({ id: 'repoB::file:/src/main.ts', type: 'file', label: 'main.ts', filePath: '/src/main.ts', repository: 'repoB' });
+      graph.addNode({ id: 'repoB::sym:render@/src/main.ts', type: 'function', label: 'render', filePath: '/src/main.ts', repository: 'repoB' });
+    });
+
+    it('generates repository-prefixed node IDs from helper when not default', () => {
+      expect(GraphEngine.nodeId('file', '/src/main.ts', 'repoA')).toBe('repoA::file:/src/main.ts');
+      expect(GraphEngine.nodeId('sym', 'render', '/src/main.ts', 'repoA')).toBe('repoA::sym:render@/src/main.ts');
+
+      // 'default' should not add prefix
+      expect(GraphEngine.nodeId('file', '/src/main.ts', 'default')).toBe('file:/src/main.ts');
+    });
+
+    it('segments definitions matching same symbol name across repos', () => {
+      const defsA = graph.findDefinitions('render', undefined, 'repoA');
+      expect(defsA).toHaveLength(1);
+      expect(defsA[0]!.id).toBe('repoA::sym:render@/src/main.ts');
+
+      const defsB = graph.findDefinitions('render', undefined, 'repoB');
+      expect(defsB).toHaveLength(1);
+      expect(defsB[0]!.id).toBe('repoB::sym:render@/src/main.ts');
+    });
+
+    it('queries and filters by repository', () => {
+      const resultA = graph.query({ query: 'render', scope: 'project', repository: 'repoA' });
+      expect(resultA.nodes).toHaveLength(1);
+      expect(resultA.nodes[0]!.id).toBe('repoA::sym:render@/src/main.ts');
+
+      const resultB = graph.query({ query: 'render', scope: 'project', repository: 'repoB' });
+      expect(resultB.nodes).toHaveLength(1);
+      expect(resultB.nodes[0]!.id).toBe('repoB::sym:render@/src/main.ts');
+    });
+  });
 });

@@ -169,9 +169,13 @@ Indexes a codebase folder into the knowledge graph.
     "path": { 
       "type": "string", 
       "description": "Root path of the codebase to index" 
+    },
+    "repository": {
+      "type": "string",
+      "description": "Repository or codebase name to segment these nodes"
     }
   },
-  "required": ["path"]
+  "required": ["path", "repository"]
 }
 ```
 
@@ -192,6 +196,10 @@ Query the code knowledge graph for code relationships, declarations, and structu
       "type": "string", 
       "description": "Optional file path to scope the query" 
     },
+    "repository": {
+      "type": "string",
+      "description": "Repository or codebase name to filter nodes"
+    },
     "scope": {
       "type": "string",
       "enum": ["file", "module", "project"],
@@ -199,7 +207,7 @@ Query the code knowledge graph for code relationships, declarations, and structu
       "description": "Query scope"
     }
   },
-  "required": ["query"]
+  "required": ["query", "repository"]
 }
 ```
 
@@ -230,9 +238,13 @@ Traces and constructs incoming and outgoing call hierarchies for a function/meth
     "project_path": { 
       "type": "string", 
       "description": "Optional project root path" 
+    },
+    "repository": {
+      "type": "string",
+      "description": "Repository or codebase name to filter nodes"
     }
   },
-  "required": ["symbol"]
+  "required": ["symbol", "repository"]
 }
 ```
 
@@ -248,8 +260,13 @@ Analyzes codebase imports to list file dependencies and identify circular depend
     "project_path": { 
       "type": "string", 
       "description": "Optional project root path" 
+    },
+    "repository": {
+      "type": "string",
+      "description": "Repository or codebase name to filter nodes"
     }
-  }
+  },
+  "required": ["repository"]
 }
 ```
 
@@ -528,8 +545,10 @@ Combines definitions, usages, references, or docs queries for multiple symbols i
       "description": "Optional list of specific queries to execute"
     },
     "project_path": { "type": "string", "description": "Optional project root path" },
+    "repository": { "type": "string", "description": "Repository or codebase name to filter nodes" },
     "include_docs": { "type": "boolean", "default": true, "description": "Whether to scan markdown documentation" }
-  }
+  },
+  "required": ["repository"]
 }
 ```
 

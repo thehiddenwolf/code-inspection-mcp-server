@@ -30,6 +30,7 @@ export interface GraphNode {
   type: GraphNodeType;
   label: string;
   filePath: string;
+  repository?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -37,6 +38,7 @@ export interface GraphEdge {
   from: string;
   to: string;
   type: GraphEdgeType;
+  repository?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -60,6 +62,7 @@ export interface GraphQuery {
   query: string;
   filePath?: string;
   scope: QueryScope;
+  repository?: string;
 }
 
 export interface QueryResult {

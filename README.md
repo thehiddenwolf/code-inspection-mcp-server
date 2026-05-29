@@ -241,11 +241,13 @@ Scans project files to construct a relational knowledge index mapping classes, i
 - **Description**: Builds a knowledge graph of a path directory.
 - **Inputs**:
   - `path` (string): Directory folder to index.
+  - `repository` (string): Repository/codebase identifier to segment and namespace these nodes.
 
 #### `find_indexed_symbol_references`
 - **Description**: Query indexed symbols or structures.
 - **Inputs**:
   - `query` (string): Natural language or symbol name to query.
+  - `repository` (string): Repository/codebase identifier to scope and filter the search.
   - `file_path` (string, optional): Restricts query to specific scope.
   - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
 
@@ -253,12 +255,16 @@ Scans project files to construct a relational knowledge index mapping classes, i
 - **Description**: Returns incoming and outgoing calls for a function symbol.
 - **Inputs**:
   - `symbol` (string): Target function name.
-  - `direction` (enum: `'incoming'`, `'outgoing'`, `'both'`).
+  - `repository` (string): Repository/codebase identifier to filter calls.
+  - `direction` (enum: `'incoming'`, `'outgoing'`, `'both'`, default `'both'`).
+  - `max_depth` (integer, default `3`): Maximum call hierarchy recursion depth.
+  - `project_path` (string, optional): Optional project root path.
 
 #### `get_indexed_symbol_dependencies`
 - **Description**: Analyzes imports to map file-level dependencies and detect circular imports.
 - **Inputs**:
-  - `project_path` (string, optional).
+  - `repository` (string): Repository/codebase identifier to filter files and imports.
+  - `project_path` (string, optional): Optional project root path.
 
 ---
 
@@ -336,8 +342,11 @@ Provides atomic batch operations and symbol usage tracking across multiple files
 #### `get_indexed_symbol_insights`
 - **Description**: Bundles definitions, usages, and docs tracing queries for multiple symbols into a single request.
 - **Inputs**:
-  - `symbols` (string[]): List of symbols.
-  - `queries` (array): Tracing operations.
+  - `repository` (string): Repository/codebase identifier to scope and filter the search.
+  - `symbols` (string[], optional): List of symbols to trace.
+  - `queries` (array, optional): Specific tracing operations to execute.
+  - `project_path` (string, optional): Optional project root path.
+  - `include_docs` (boolean, default `true`): Whether to scan markdown documentation.
 
 #### `refactor_execute_batch`
 - **Description**: Atomically runs a transactional sequence of refactor operations (rename, replace, move, create, delete) across files.

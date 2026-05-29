@@ -294,6 +294,10 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Optional file path to narrow the search scope',
         },
+        repository: {
+          type: 'string',
+          description: 'Repository or codebase name to filter nodes',
+        },
         scope: {
           type: 'string',
           enum: ['file', 'module', 'project'],
@@ -301,20 +305,21 @@ const TOOLS: ToolDef[] = [
           default: 'project',
         },
       },
-      required: ['query'],
+      required: ['query', 'repository'],
     },
     handler: async (args) => {
       const query = String(args.query ?? '');
       const filePath = args.file_path ? String(args.file_path) : undefined;
+      const repository = args.repository ? String(args.repository) : undefined;
       const scope = (args.scope as QueryScope) ?? 'project';
 
       const context = getRepoContext(filePath);
       const { graph, indexedFiles } = context;
-      graph.query({ query, filePath, scope });
+      graph.query({ query, filePath, scope, repository });
 
       const root = context.currentProjectRoot || lastActiveRoot;
 
-      const definitions = graph.findDefinitions(query, filePath).map((node) => {
+      const definitions = graph.findDefinitions(query, filePath, repository).map((node) => {
         let lineOfCode = `[Definition] ${node.type} ${node.label}`;
         const lineNumber = (node.metadata?.line as number) ?? 1;
         const fullPath = path.isAbsolute(node.filePath) ? node.filePath : path.join(root, node.filePath);
@@ -331,6 +336,7 @@ const TOOLS: ToolDef[] = [
 
         return {
           file: node.filePath,
+          repository: node.repository,
           class_or_table: 'None',
           method: 'None',
           line_number: lineNumber,
@@ -340,14 +346,23 @@ const TOOLS: ToolDef[] = [
         };
       });
 
-      let targetFiles = indexedFiles;
+      let targetFiles = new Set<string>();
+      if (repository) {
+        const repoNodes = graph.getAllNodes().filter(n => n.repository === repository && n.type === 'file');
+        for (const n of repoNodes) {
+          targetFiles.add(n.filePath);
+        }
+      } else {
+        targetFiles = indexedFiles;
+      }
+
       if (filePath) {
         const absTarget = path.isAbsolute(filePath)
           ? filePath
           : path.resolve(root, filePath);
 
         targetFiles = new Set(
-          Array.from(indexedFiles).filter((f) => {
+          Array.from(targetFiles).filter((f) => {
             const absF = path.isAbsolute(f) ? f : path.resolve(root, f);
             try {
               const stat = fs.statSync(absTarget);
@@ -365,6 +380,7 @@ const TOOLS: ToolDef[] = [
 
       const usages = findCodeReferences(query, root, targetFiles).map((ref) => ({
         ...ref,
+        repository,
         is_definition: false,
         symbol_type: 'reference',
       }));
@@ -395,15 +411,23 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Optional file content. If omitted, the file will be read from disk.',
         },
+        repository: {
+          type: 'string',
+          description: 'Repository or codebase name to segment these nodes',
+        },
       },
-      required: ['file_path'],
+      required: ['file_path', 'repository'],
     },
     handler: async (args) => {
       const filePath = String(args.file_path ?? '');
       const content = args.content ? String(args.content) : undefined;
+      const repositoryArg = args.repository ? String(args.repository) : undefined;
 
       const context = getRepoContext(filePath);
-      const { graph, indexer, indexedFiles, fileHashes, store } = context;
+      const { graph, indexedFiles, fileHashes, store } = context;
+
+      const repository = repositoryArg ?? (path.basename(context.currentProjectRoot || path.dirname(filePath)) || 'default');
+      const repoIndexer = new FileIndexer(store, repository);
 
       if (indexedFiles.has(filePath)) {
         return {
@@ -443,14 +467,14 @@ const TOOLS: ToolDef[] = [
         }
       }
 
-      const indexed = indexer.indexFile(filePath, fileContent);
-      const added = indexer.applyToGraph(graph, indexed);
+      const indexed = repoIndexer.indexFile(filePath, fileContent, repository);
+      const added = repoIndexer.applyToGraph(graph, indexed);
       indexedFiles.add(filePath);
 
       // Persist to store
       const hash = FileIndexer.computeHash(fileContent);
       fileHashes.set(filePath, hash);
-      store.recordIndexedFile(filePath, hash, indexed.nodes.length);
+      store.recordIndexedFile(filePath, hash, indexed.nodes.length, repository);
       for (const node of indexed.nodes) {
         try { store.insertNode(node); } catch { /* duplicate */ }
       }
@@ -467,6 +491,7 @@ const TOOLS: ToolDef[] = [
               {
                 status: 'indexed',
                 file: filePath,
+                repository,
                 symbols_found: indexed.symbols.length,
                 nodes_added: added,
                 nodes: indexed.nodes.map((n) => ({
@@ -504,11 +529,16 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Root directory path of the project to index',
         },
+        repository: {
+          type: 'string',
+          description: 'Repository or codebase name to segment these nodes',
+        },
       },
-      required: ['dir_path'],
+      required: ['dir_path', 'repository'],
     },
     handler: async (args) => {
       const dirPath = String(args.dir_path ?? '');
+      const repositoryArg = args.repository ? String(args.repository) : undefined;
 
       try {
         const { statSync } = await import('node:fs');
@@ -542,10 +572,13 @@ const TOOLS: ToolDef[] = [
       }
 
       const context = getRepoContext(dirPath);
-      const { graph, indexer, indexedFiles } = context;
+      const { graph, indexedFiles } = context;
 
-      const project = indexer.indexDirectory(dirPath);
-      const stats = indexer.applyProjectToGraph(graph, project);
+      const repository = repositoryArg ?? path.basename(path.resolve(dirPath)) ?? 'default';
+      const repoIndexer = new FileIndexer(context.store, repository);
+
+      const project = repoIndexer.indexDirectory(dirPath, undefined, repository);
+      const stats = repoIndexer.applyProjectToGraph(graph, project);
       context.currentProjectRoot = dirPath;
 
       // Track all indexed files and persist to store
@@ -556,7 +589,7 @@ const TOOLS: ToolDef[] = [
           const fullPath = path.join(dirPath, f.filePath);
           const content = fs.readFileSync(fullPath, 'utf-8');
           const hash = computeFileHash(content);
-          store.recordIndexedFile(f.filePath, hash, f.nodes.length);
+          store.recordIndexedFile(f.filePath, hash, f.nodes.length, repository);
           for (const node of f.nodes) {
             try { store.insertNode(node); } catch { /* duplicate */ }
           }
@@ -576,6 +609,7 @@ const TOOLS: ToolDef[] = [
               {
                 status: 'indexed',
                 root: project.rootDir,
+                repository,
                 files_indexed: project.files.length,
                 total_symbols: project.totalSymbols,
                 nodes_added: stats.nodesAdded,
@@ -614,19 +648,32 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Optional project root — restricts results to this project',
         },
+        repository: {
+          type: 'string',
+          description: 'Repository or codebase name to filter nodes',
+        },
       },
-      required: ['symbol'],
+      required: ['symbol', 'repository'],
     },
     handler: async (args) => {
       const symbol = String(args.symbol ?? '');
       const projectPath = args.project_path ? String(args.project_path) : undefined;
+      const repository = args.repository ? String(args.repository) : undefined;
 
       const context = getRepoContext(projectPath);
       const { graph, indexedFiles } = context;
-      const results = graph.findReferences(symbol, projectPath);
+      const results = graph.findReferences(symbol, projectPath, repository);
 
       const root = context.currentProjectRoot || lastActiveRoot;
-      const codeReferences = findCodeReferences(symbol, root, indexedFiles);
+      let targetFiles = indexedFiles;
+      if (repository) {
+        targetFiles = new Set(
+          graph.getAllNodes()
+            .filter(n => n.repository === repository && n.type === 'file')
+            .map(n => n.filePath)
+        );
+      }
+      const codeReferences = findCodeReferences(symbol, root, targetFiles).map(ref => ({ ...ref, repository }));
 
       return {
         content: [
@@ -654,15 +701,20 @@ const TOOLS: ToolDef[] = [
           type: 'string',
           description: 'Optional file path to narrow the search',
         },
+        repository: {
+          type: 'string',
+          description: 'Repository or codebase name to filter nodes',
+        },
       },
-      required: ['symbol'],
+      required: ['symbol', 'repository'],
     },
     handler: async (args) => {
       const symbol = String(args.symbol ?? '');
       const filePath = args.file_path ? String(args.file_path) : undefined;
+      const repository = args.repository ? String(args.repository) : undefined;
 
       const { graph } = getRepoContext(filePath);
-      const definitions = graph.findDefinitions(symbol, filePath);
+      const definitions = graph.findDefinitions(symbol, filePath, repository);
 
       return {
         content: [
@@ -677,6 +729,7 @@ const TOOLS: ToolDef[] = [
                   type: d.type,
                   label: d.label,
                   file: d.filePath,
+                  repository: d.repository,
                   metadata: d.metadata ?? {},
                 })),
               },

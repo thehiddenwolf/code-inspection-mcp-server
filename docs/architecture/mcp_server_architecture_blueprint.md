@@ -94,13 +94,26 @@ Calculates cyclomatic complexity, lines of code (LOC) impact, and routes subtask
 - **Output:**
   - `subtasks` (array): Broken down subtasks, each labeled with a recommended LLM tier (`premium` vs. `cheap`) and complexity score.
 
-### 3.4 RepoGraph (`find_indexed_symbol_references` / `index_codebase`)
-Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / DeusData parsing backend).
-- **Input Schema:**
-  - `query` (string, required): Structured/natural language query.
-  - `file_path` (string, optional): Scoping path.
+### 3.4 RepoGraph (`find_indexed_symbol_references` / `index_codebase` / `get_indexed_symbol_tree` / `get_indexed_symbol_dependencies`)
+Relational codebase knowledge graph backed by SQLite (using Codebase-Memory / DeusData parsing backend). Supports multi-repository codebase segmentation via a required `repository` parameter.
+- **Common Inputs:**
+  - `repository` (string, required): Repository or codebase name to scope all nodes and operations.
+- **Tool-Specific Inputs:**
+  - `index_codebase`:
+    - `path` (string, required): Root path of the codebase to index.
+  - `find_indexed_symbol_references`:
+    - `query` (string, required): Natural language or structured query.
+    - `file_path` (string, optional): Scope boundary path.
+    - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
+  - `get_indexed_symbol_tree`:
+    - `symbol` (string, required): Target function or method name.
+    - `direction` (enum: `'incoming'`, `'outgoing'`, `'both'`, default `'both'`).
+    - `max_depth` (integer, default `3`).
+    - `project_path` (string, optional).
+  - `get_indexed_symbol_dependencies`:
+    - `project_path` (string, optional).
 - **Output:**
-  - `entities` and `relationships` matching the query scope (e.g. classes, imports, call chains).
+  - `entities`, `relationships`, `call tree graphs`, or `dependency trees` matching the query/repository scope.
 
 ---
 

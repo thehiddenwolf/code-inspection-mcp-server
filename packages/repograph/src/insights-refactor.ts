@@ -106,13 +106,15 @@ export function trackReference(
   graph: GraphEngine,
   indexedFiles: Set<string>,
   includeDocs = true,
-  findCodeRefsFn: (query: string, root: string, files: Set<string>) => CodeReference[]
+  findCodeRefsFn: (query: string, root: string, files: Set<string>) => CodeReference[],
+  repository?: string
 ): TrackReferenceResult {
-  const definitions = graph.findDefinitions(symbol).map((d) => ({
+  const definitions = graph.findDefinitions(symbol, undefined, repository).map((d) => ({
     id: d.id,
     type: d.type,
     label: d.label,
     file: d.filePath,
+    repository: d.repository,
     metadata: d.metadata ?? {},
   }));
 
@@ -135,6 +137,7 @@ export function getInsights(
     symbols?: string[];
     queries?: Array<{ type: 'definitions' | 'usages' | 'references' | 'docs'; symbol: string }>;
     include_docs?: boolean;
+    repository?: string;
   },
   rootDir: string,
   graph: GraphEngine,
@@ -146,7 +149,7 @@ export function getInsights(
 
   if (params.symbols && Array.isArray(params.symbols)) {
     for (const sym of params.symbols) {
-      insights[sym] = trackReference(sym, rootDir, graph, indexedFiles, includeDocs, findCodeRefsFn);
+      insights[sym] = trackReference(sym, rootDir, graph, indexedFiles, includeDocs, findCodeRefsFn, params.repository);
     }
   }
 
@@ -154,11 +157,12 @@ export function getInsights(
     for (const query of params.queries) {
       const key = `${query.type}:${query.symbol}`;
       if (query.type === 'definitions') {
-        insights[key] = graph.findDefinitions(query.symbol).map((d) => ({
+        insights[key] = graph.findDefinitions(query.symbol, undefined, params.repository).map((d) => ({
           id: d.id,
           type: d.type,
           label: d.label,
           file: d.filePath,
+          repository: d.repository,
           metadata: d.metadata ?? {},
         }));
       } else if (query.type === 'usages' || query.type === 'references') {
@@ -336,11 +340,14 @@ export function getCallHierarchy(
   symbolName: string,
   direction: 'incoming' | 'outgoing' | 'both',
   graph: GraphEngine,
-  maxDepth = 3
+  maxDepth = 3,
+  repository?: string
 ): { incoming?: CallNode[]; outgoing?: CallNode[] } {
   const lowerName = symbolName.toLowerCase();
   const matchedNodes = graph.getAllNodes().filter(
-    (n) => n.id.toLowerCase().includes(lowerName) || n.label.toLowerCase() === lowerName
+    (n) => ((n.id.toLowerCase().includes(lowerName) || n.label.toLowerCase() === lowerName) ||
+            n.id.toLowerCase().replace(/^[^:]+::/, '').includes(lowerName)) &&
+           (!repository || n.repository === repository)
   );
 
   const result: { incoming?: CallNode[]; outgoing?: CallNode[] } = {};
@@ -366,7 +373,7 @@ export function getCallHierarchy(
     const visited = new Set<string>();
 
     if (dir === 'incoming') {
-      const edges = graph.getIncomingEdges(nodeId).filter((e) => e.type === 'calls');
+      const edges = graph.getIncomingEdges(nodeId).filter((e) => e.type === 'calls' && (!repository || e.repository === repository));
       for (const edge of edges) {
         if (!visited.has(edge.from)) {
           visited.add(edge.from);
@@ -374,7 +381,7 @@ export function getCallHierarchy(
         }
       }
     } else {
-      const edges = graph.getOutgoingEdges(nodeId).filter((e) => e.type === 'calls');
+      const edges = graph.getOutgoingEdges(nodeId).filter((e) => e.type === 'calls' && (!repository || e.repository === repository));
       for (const edge of edges) {
         if (!visited.has(edge.to)) {
           visited.add(edge.to);
@@ -402,16 +409,16 @@ export interface DependencyReport {
 /**
  * Analyzes file imports in the graph to return import dependencies and circular dependency paths.
  */
-export function getDependencyReport(graph: GraphEngine): DependencyReport {
-  const fileNodes = graph.getNodesByType('file');
+export function getDependencyReport(graph: GraphEngine, repository?: string): DependencyReport {
+  const fileNodes = graph.getNodesByType('file').filter((n) => !repository || n.repository === repository);
   const dependencies: Record<string, string[]> = {};
   
   for (const node of fileNodes) {
     const outgoing = graph.getOutgoingEdges(node.id)
-      .filter((e) => e.type === 'imports')
+      .filter((e) => e.type === 'imports' && (!repository || e.repository === repository))
       .map((e) => {
         const destNode = graph.getNode(e.to);
-        return destNode ? destNode.filePath : e.to.replace(/^file:/, '');
+        return destNode ? destNode.filePath : e.to.replace(/^file:/, '').replace(/^[^:]+::/, '');
       });
     dependencies[node.filePath] = outgoing;
   }

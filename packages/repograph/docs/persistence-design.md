@@ -98,6 +98,7 @@ Stores graph nodes — files, classes, functions, interfaces, types, variables, 
 ```sql
 CREATE TABLE nodes (
   id        TEXT NOT NULL PRIMARY KEY,
+  repository TEXT NOT NULL DEFAULT 'default',
   type      TEXT NOT NULL CHECK (type IN (
                'file', 'class', 'function', 'interface',
                'type', 'variable', 'export'
@@ -111,6 +112,7 @@ CREATE TABLE nodes (
 
 CREATE INDEX idx_nodes_file_path ON nodes(file_path);
 CREATE INDEX idx_nodes_type     ON nodes(type);
+CREATE INDEX idx_nodes_repository ON nodes(repository);
 
 -- FTS5 virtual table for full-text search on node labels/ids
 CREATE VIRTUAL TABLE nodes_fts USING fts5(
@@ -122,8 +124,8 @@ CREATE VIRTUAL TABLE nodes_fts USING fts5(
 ```
 
 **Node ID convention** (inherited from `GraphEngine.nodeId()`):
-- Files: `file:<relative/path/to/file.ts>`
-- Symbols: `sym:<name>@<relative/path/to/file.ts>`
+- Files: `file:<relative/path/to/file.ts>` (or prefixed with `repository::` for non-default repositories)
+- Symbols: `sym:<name>@<relative/path/to/file.ts>` (or prefixed with `repository::` for non-default repositories)
 
 #### `edges`
 
@@ -137,6 +139,7 @@ CREATE TABLE edges (
   type      TEXT NOT NULL CHECK (type IN (
                'defines', 'imports', 'calls', 'extends', 'implements'
              )),
+  repository TEXT NOT NULL DEFAULT 'default',
   metadata  TEXT,  -- JSON blob (e.g., { "names": ["Foo"], "default": true })
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(from_id, to_id, type)
@@ -145,6 +148,7 @@ CREATE TABLE edges (
 CREATE INDEX idx_edges_from   ON edges(from_id);
 CREATE INDEX idx_edges_to     ON edges(to_id);
 CREATE INDEX idx_edges_type   ON edges(type);
+CREATE INDEX idx_edges_repository ON edges(repository);
 ```
 
 #### `graph_meta`
@@ -160,7 +164,7 @@ CREATE TABLE graph_meta (
 
 | Key | Value example | Purpose |
 |-----|--------------|---------|
-| `schema_version` | `"1"` | Schema migration tracking |
+| `schema_version` | `"2"` | Schema migration tracking |
 | `last_indexed_at` | `"2026-05-27T22:30:00Z"` | Timestamp of last full index |
 | `indexed_file_count` | `"142"` | Number of files currently indexed |
 | `root_directory` | `"/home/kerwin/code/hermes-mcp-toolset"` | Project root |
@@ -173,10 +177,12 @@ Tracks which files have been indexed and their content hashes for incremental up
 
 ```sql
 CREATE TABLE indexed_files (
-  file_path  TEXT NOT NULL PRIMARY KEY,
+  file_path  TEXT NOT NULL,
+  repository TEXT NOT NULL DEFAULT 'default',
   file_hash  TEXT NOT NULL,  -- SHA-256 of file content at last index
   indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
-  node_count INTEGER NOT NULL DEFAULT 0
+  node_count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (file_path, repository)
 );
 ```
 
@@ -231,7 +237,7 @@ export interface GraphStore {
   applyDelta(delta: { nodes: GraphNode[]; edges: GraphEdge[] }): void;
 
   /** Remove all nodes/edges for a given file (re-index preparation). */
-  removeFile(filePath: string): void;
+  removeFile(filePath: string, repository?: string): void;
 
   /** Search nodes by label/ID (via FTS5). */
   searchNodes(query: string, limit?: number): GraphNode[];
@@ -245,13 +251,13 @@ export interface GraphStore {
   // ── File tracking ──
 
   /** Record a file as indexed. */
-  recordIndexedFile(filePath: string, hash: string, nodeCount: number): void;
+  recordIndexedFile(filePath: string, hash: string, nodeCount: number, repository?: string): void;
 
   /** Get the stored hash for a file. Returns null if not indexed. */
-  getFileHash(filePath: string): string | null;
+  getFileHash(filePath: string, repository?: string): string | null;
 
   /** Check if a file needs re-indexing. */
-  needsReindex(filePath: string, currentHash: string): boolean;
+  needsReindex(filePath: string, currentHash: string, repository?: string): boolean;
 
   // ── Lifecycle ──
 

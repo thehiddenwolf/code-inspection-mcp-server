@@ -85,7 +85,7 @@ export interface GraphStore {
   applyDelta(delta: StoreDelta): void;
 
   /** Remove all nodes/edges for a given file (re-index preparation). */
-  removeFile(filePath: string): void;
+  removeFile(filePath: string, repository?: string): void;
 
   /** Search nodes by label/ID (via FTS5). */
   searchNodes(query: string, limit?: number): GraphNode[];
@@ -99,13 +99,13 @@ export interface GraphStore {
   // ── File tracking ──
 
   /** Record a file as indexed. */
-  recordIndexedFile(filePath: string, hash: string, nodeCount: number): void;
+  recordIndexedFile(filePath: string, hash: string, nodeCount: number, repository?: string): void;
 
   /** Get the stored hash for a file. Returns null if not indexed. */
-  getFileHash(filePath: string): string | null;
+  getFileHash(filePath: string, repository?: string): string | null;
 
   /** Check if a file needs re-indexing. */
-  needsReindex(filePath: string, currentHash: string): boolean;
+  needsReindex(filePath: string, currentHash: string, repository?: string): boolean;
 
   // ── Lifecycle ──
 
@@ -129,6 +129,7 @@ const SCHEMA_SQL = `
 
   CREATE TABLE IF NOT EXISTS nodes (
     id        TEXT NOT NULL PRIMARY KEY,
+    repository TEXT NOT NULL DEFAULT 'default',
     type      TEXT NOT NULL CHECK (type IN ('file','class','function','interface','type','variable','export')),
     label     TEXT NOT NULL,
     file_path TEXT NOT NULL,
@@ -145,6 +146,7 @@ const SCHEMA_SQL = `
     from_id   TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     to_id     TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     type      TEXT NOT NULL CHECK (type IN ('defines','imports','calls','extends','implements')),
+    repository TEXT NOT NULL DEFAULT 'default',
     metadata  TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(from_id, to_id, type)
@@ -155,10 +157,12 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(type);
 
   CREATE TABLE IF NOT EXISTS indexed_files (
-    file_path  TEXT NOT NULL PRIMARY KEY,
+    file_path  TEXT NOT NULL,
+    repository TEXT NOT NULL DEFAULT 'default',
     file_hash  TEXT NOT NULL,
     indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
-    node_count INTEGER NOT NULL DEFAULT 0
+    node_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (file_path, repository)
   );
 `;
 
@@ -171,12 +175,13 @@ const FTS_SQL = `
   );
 `;
 
-function fromDbNode(row: { id: string; type: string; label: string; file_path: string; metadata: string | null }): GraphNode {
+function fromDbNode(row: { id: string; type: string; label: string; file_path: string; repository?: string; metadata: string | null }): GraphNode {
   return {
     id: row.id,
     type: row.type as GraphNode['type'],
     label: row.label,
     filePath: row.file_path,
+    repository: row.repository ?? 'default',
     metadata: row.metadata ? JSON.parse(row.metadata) : {},
   };
 }
@@ -187,16 +192,18 @@ function toDbNode(node: GraphNode): Record<string, unknown> {
     type: node.type,
     label: node.label,
     file_path: node.filePath,
+    repository: node.repository ?? 'default',
     metadata: Object.keys(node.metadata ?? {}).length > 0 ? JSON.stringify(node.metadata) : null,
     updated_at: new Date().toISOString(),
   };
 }
 
-function fromDbEdge(row: { id: number; from_id: string; to_id: string; type: string; metadata: string | null }): GraphEdge {
+function fromDbEdge(row: { id: number; from_id: string; to_id: string; type: string; repository?: string; metadata: string | null }): GraphEdge {
   return {
     from: row.from_id,
     to: row.to_id,
     type: row.type as GraphEdge['type'],
+    repository: row.repository ?? 'default',
     metadata: row.metadata ? JSON.parse(row.metadata) : {},
   };
 }
@@ -259,12 +266,41 @@ export class SqliteGraphStore implements GraphStore {
 
   private migrate(): void {
     const db = this.checkInit();
-    const version = parseInt(db.prepare("SELECT value FROM graph_meta WHERE key = 'schema_version'").get() as string ?? '0', 10) || 0;
+    const version = parseInt((db.prepare("SELECT value FROM graph_meta WHERE key = 'schema_version'").get() as { value: string })?.value ?? '0', 10) || 0;
 
     if (version < 1) {
       // Schema v1: initial tables created above
       db.prepare("INSERT OR REPLACE INTO graph_meta (key, value) VALUES ('schema_version', '1')").run();
       log.info('Schema migrated to v1');
+    }
+
+    if (version < 2) {
+      try {
+        db.exec("ALTER TABLE nodes ADD COLUMN repository TEXT NOT NULL DEFAULT 'default';");
+        db.exec("ALTER TABLE edges ADD COLUMN repository TEXT NOT NULL DEFAULT 'default';");
+
+        // Recreate indexed_files to change primary key to (file_path, repository)
+        db.exec("ALTER TABLE indexed_files RENAME TO indexed_files_old;");
+        db.exec(`
+          CREATE TABLE indexed_files (
+            file_path  TEXT NOT NULL,
+            repository TEXT NOT NULL DEFAULT 'default',
+            file_hash  TEXT NOT NULL,
+            indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
+            node_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (file_path, repository)
+          );
+        `);
+        db.exec("INSERT INTO indexed_files (file_path, file_hash, indexed_at, node_count, repository) SELECT file_path, file_hash, indexed_at, node_count, 'default' FROM indexed_files_old;");
+        db.exec("DROP TABLE indexed_files_old;");
+
+        db.exec("CREATE INDEX IF NOT EXISTS idx_nodes_repository ON nodes(repository);");
+        db.exec("CREATE INDEX IF NOT EXISTS idx_edges_repository ON edges(repository);");
+      } catch (err) {
+        log.warn('Migration to schema v2 warning (tables might already have columns):', { error: String(err) });
+      }
+      db.prepare("INSERT OR REPLACE INTO graph_meta (key, value) VALUES ('schema_version', '2')").run();
+      log.info('Schema migrated to v2');
     }
   }
 
@@ -277,7 +313,7 @@ export class SqliteGraphStore implements GraphStore {
 
     const row = toDbNode(node);
     db.prepare(
-      'INSERT INTO nodes (id, type, label, file_path, metadata, updated_at) VALUES (@id, @type, @label, @file_path, @metadata, @updated_at)',
+      'INSERT INTO nodes (id, repository, type, label, file_path, metadata, updated_at) VALUES (@id, @repository, @type, @label, @file_path, @metadata, @updated_at)',
     ).run(row);
 
     // Sync FTS5
@@ -328,11 +364,12 @@ export class SqliteGraphStore implements GraphStore {
   insertEdge(edge: GraphEdge): number {
     const db = this.checkInit();
     const result = db.prepare(
-      'INSERT OR IGNORE INTO edges (from_id, to_id, type, metadata) VALUES (@from_id, @to_id, @type, @metadata)',
+      'INSERT OR IGNORE INTO edges (from_id, to_id, type, repository, metadata) VALUES (@from_id, @to_id, @type, @repository, @metadata)',
     ).run({
       from_id: edge.from,
       to_id: edge.to,
       type: edge.type,
+      repository: edge.repository ?? 'default',
       metadata: edge.metadata ? JSON.stringify(edge.metadata) : null,
     });
     return result.lastInsertRowid as number;
@@ -371,10 +408,10 @@ export class SqliteGraphStore implements GraphStore {
   applyDelta(delta: StoreDelta): void {
     const db = this.checkInit();
     const insertNode = db.prepare(
-      'INSERT OR REPLACE INTO nodes (id, type, label, file_path, metadata, updated_at) VALUES (@id, @type, @label, @file_path, @metadata, @updated_at)',
+      'INSERT OR REPLACE INTO nodes (id, repository, type, label, file_path, metadata, updated_at) VALUES (@id, @repository, @type, @label, @file_path, @metadata, @updated_at)',
     );
     const insertEdge = db.prepare(
-      'INSERT OR IGNORE INTO edges (from_id, to_id, type, metadata) VALUES (@from_id, @to_id, @type, @metadata)',
+      'INSERT OR IGNORE INTO edges (from_id, to_id, type, repository, metadata) VALUES (@from_id, @to_id, @type, @repository, @metadata)',
     );
 
     const transaction = db.transaction(() => {
@@ -390,6 +427,7 @@ export class SqliteGraphStore implements GraphStore {
           from_id: edge.from,
           to_id: edge.to,
           type: edge.type,
+          repository: edge.repository ?? 'default',
           metadata: edge.metadata ? JSON.stringify(edge.metadata) : null,
         });
       }
@@ -398,11 +436,11 @@ export class SqliteGraphStore implements GraphStore {
     transaction();
   }
 
-  removeFile(filePath: string): void {
+  removeFile(filePath: string, repository = 'default'): void {
     const db = this.checkInit();
     const transaction = db.transaction(() => {
-      // Find nodes for this file
-      const nodes = db.prepare('SELECT id FROM nodes WHERE file_path = ?').all(filePath) as { id: string }[];
+      // Find nodes for this file and repository
+      const nodes = db.prepare('SELECT id FROM nodes WHERE file_path = ? AND repository = ?').all(filePath, repository) as { id: string }[];
       const nodeIds = nodes.map((n) => n.id);
 
       if (nodeIds.length > 0) {
@@ -418,7 +456,7 @@ export class SqliteGraphStore implements GraphStore {
       }
 
       // Remove from indexed_files
-      db.prepare('DELETE FROM indexed_files WHERE file_path = ?').run(filePath);
+      db.prepare('DELETE FROM indexed_files WHERE file_path = ? AND repository = ?').run(filePath, repository);
     });
 
     transaction();
@@ -454,21 +492,21 @@ export class SqliteGraphStore implements GraphStore {
 
   // ── File tracking ──
 
-  recordIndexedFile(filePath: string, hash: string, nodeCount: number): void {
+  recordIndexedFile(filePath: string, hash: string, nodeCount: number, repository = 'default'): void {
     const db = this.checkInit();
     db.prepare(
-      'INSERT OR REPLACE INTO indexed_files (file_path, file_hash, node_count, indexed_at) VALUES (?, ?, ?, datetime(\'now\'))',
-    ).run(filePath, hash, nodeCount);
+      'INSERT OR REPLACE INTO indexed_files (file_path, repository, file_hash, node_count, indexed_at) VALUES (?, ?, ?, ?, datetime(\'now\'))',
+    ).run(filePath, repository, hash, nodeCount);
   }
 
-  getFileHash(filePath: string): string | null {
+  getFileHash(filePath: string, repository = 'default'): string | null {
     const db = this.checkInit();
-    const row = db.prepare('SELECT file_hash FROM indexed_files WHERE file_path = ?').get(filePath) as { file_hash: string } | undefined;
+    const row = db.prepare('SELECT file_hash FROM indexed_files WHERE file_path = ? AND repository = ?').get(filePath, repository) as { file_hash: string } | undefined;
     return row?.file_hash ?? null;
   }
 
-  needsReindex(filePath: string, currentHash: string): boolean {
-    const storedHash = this.getFileHash(filePath);
+  needsReindex(filePath: string, currentHash: string, repository = 'default'): boolean {
+    const storedHash = this.getFileHash(filePath, repository);
     if (storedHash === null) return true; // Not indexed yet
     return storedHash !== currentHash;
   }
@@ -653,16 +691,19 @@ export class JsonGraphStore implements GraphStore {
     this.save();
   }
 
-  removeFile(filePath: string): void {
+  removeFile(filePath: string, repository = 'default'): void {
     this.checkInit();
     const fileNodeIds = new Set(
-      this.data.nodes.filter((n) => n.filePath === filePath).map((n) => n.id),
+      this.data.nodes
+        .filter((n) => n.filePath === filePath && (n.repository ?? 'default') === repository)
+        .map((n) => n.id),
     );
     this.data.nodes = this.data.nodes.filter((n) => !fileNodeIds.has(n.id));
     this.data.edges = this.data.edges.filter(
       (e) => !fileNodeIds.has(e.from) && !fileNodeIds.has(e.to),
     );
-    delete this.data.indexedFiles[filePath];
+    const key = `${repository}::${filePath}`;
+    delete this.data.indexedFiles[key];
     this.save();
   }
 
@@ -687,9 +728,10 @@ export class JsonGraphStore implements GraphStore {
 
   // ── File tracking ──
 
-  recordIndexedFile(filePath: string, hash: string, nodeCount: number): void {
+  recordIndexedFile(filePath: string, hash: string, nodeCount: number, repository = 'default'): void {
     this.checkInit();
-    this.data.indexedFiles[filePath] = {
+    const key = `${repository}::${filePath}`;
+    this.data.indexedFiles[key] = {
       hash,
       nodeCount,
       indexedAt: new Date().toISOString(),
@@ -697,13 +739,14 @@ export class JsonGraphStore implements GraphStore {
     this.save();
   }
 
-  getFileHash(filePath: string): string | null {
+  getFileHash(filePath: string, repository = 'default'): string | null {
     this.checkInit();
-    return this.data.indexedFiles[filePath]?.hash ?? null;
+    const key = `${repository}::${filePath}`;
+    return this.data.indexedFiles[key]?.hash ?? null;
   }
 
-  needsReindex(filePath: string, currentHash: string): boolean {
-    const stored = this.data.indexedFiles[filePath];
+  needsReindex(filePath: string, currentHash: string, repository = 'default'): boolean {
+    const stored = this.data.indexedFiles[`${repository}::${filePath}`];
     if (!stored) return true;
     return stored.hash !== currentHash;
   }

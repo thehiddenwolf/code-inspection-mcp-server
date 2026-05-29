@@ -31,10 +31,18 @@ export interface IndexedProject {
 
 export class FileIndexer {
   private graphNodeIdCounter = 0;
+  public repository = 'default';
 
   // ── Initialization ──
 
-  constructor(private store: import('./graph-store.js').GraphStore | null = null) {}
+  constructor(
+    private store: import('./graph-store.js').GraphStore | null = null,
+    repository?: string,
+  ) {
+    if (repository) {
+      this.repository = repository;
+    }
+  }
 
   /**
    * Compute a SHA-256 hash of file content for change detection.
@@ -48,18 +56,20 @@ export class FileIndexer {
   /**
    * Index a single file: extract symbols and build graph nodes/edges.
    */
-  indexFile(filePath: string, content: string): IndexedFile {
+  indexFile(filePath: string, content: string, repository?: string): IndexedFile {
+    const activeRepo = repository ?? this.repository;
     const symbols: Symbol[] = [];
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
 
     // File node
-    const fileNodeId = `file:${filePath}`;
+    const fileNodeId = GraphEngine.nodeId('file', filePath, activeRepo);
     nodes.push({
       id: fileNodeId,
       type: 'file',
       label: filePath.split('/').pop() ?? filePath,
       filePath,
+      repository: activeRepo,
     });
 
     const parser = getParserForFile(filePath);
@@ -70,24 +80,27 @@ export class FileIndexer {
     // ── Extract imports & build edges ──
     const imports = parser.extractImports(content, filePath);
     for (const imp of imports) {
-      const importNodeId = GraphEngine.nodeId('file', imp.source);
+      const importNodeId = GraphEngine.nodeId('file', imp.source, activeRepo);
       nodes.push({
         id: importNodeId,
         type: 'file',
         label: imp.source.split('/').pop() ?? imp.source,
         filePath: imp.source,
+        repository: activeRepo,
       });
       edges.push({
         from: fileNodeId,
         to: importNodeId,
         type: 'imports',
+        repository: activeRepo,
         metadata: { names: imp.names },
       });
       if (imp.defaultName) {
         edges.push({
           from: fileNodeId,
-          to: `sym:${imp.defaultName}`,
+          to: GraphEngine.nodeId('sym', imp.defaultName, undefined, activeRepo),
           type: 'imports',
+          repository: activeRepo,
           metadata: { default: true },
         });
       }
@@ -96,26 +109,33 @@ export class FileIndexer {
     // ── Extract declarations ──
     const declarations = parser.extractDeclarations(content, filePath);
     for (const decl of declarations) {
-      const symId = `sym:${decl.name}@${filePath}`;
+      const symId = GraphEngine.nodeId('sym', decl.name, filePath, activeRepo);
       symbols.push(decl);
       nodes.push({
         id: symId,
         type: decl.type,
         label: decl.name,
         filePath,
+        repository: activeRepo,
         metadata: { exported: decl.exported, line: decl.line, column: decl.column },
       });
       edges.push({
         from: fileNodeId,
         to: symId,
         type: 'defines',
+        repository: activeRepo,
       });
     }
 
     // ── Extract extends/implements relationships ──
     const relationships = parser.extractRelationships(content, filePath);
     for (const rel of relationships) {
-      edges.push(rel);
+      edges.push({
+        ...rel,
+        from: (activeRepo && activeRepo !== 'default') ? `${activeRepo}::${rel.from}` : rel.from,
+        to: (activeRepo && activeRepo !== 'default') ? `${activeRepo}::${rel.to}` : rel.to,
+        repository: activeRepo,
+      });
     }
 
     return { filePath, symbols, nodes, edges };
@@ -126,7 +146,7 @@ export class FileIndexer {
   /**
    * Index an entire project directory recursively.
    */
-  indexDirectory(dirPath: string, rootDir?: string): IndexedProject {
+  indexDirectory(dirPath: string, rootDir?: string, repository?: string): IndexedProject {
     const actualRoot = rootDir ?? dirPath;
     const allFiles = this.collectFiles(dirPath);
     const indexedFiles: IndexedFile[] = [];
@@ -134,11 +154,13 @@ export class FileIndexer {
     let totalNodes = 0;
     let totalEdges = 0;
 
+    const activeRepo = repository ?? this.repository;
+
     for (const filePath of allFiles) {
       const relPath = relative(actualRoot, filePath);
       try {
         const content = readFileSync(filePath, 'utf-8');
-        const indexed = this.indexFile(relPath, content);
+        const indexed = this.indexFile(relPath, content, activeRepo);
         indexedFiles.push(indexed);
         totalSymbols += indexed.symbols.length;
         totalNodes += indexed.nodes.length;

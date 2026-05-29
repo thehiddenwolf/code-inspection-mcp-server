@@ -351,10 +351,11 @@ Input Code
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `find_indexed_symbol_references` | `{ query_type, file_path?, entity_name?, ... }` | `{ results, graph_summary }` |
-| `repograph.update` | `{ changes, full_rescan? }` | `{ entities_added, edges_added }` |
-| `repograph.register_intent` | `{ intent, file_paths[], confidence? }` | `{ success, intent_id }` |
-| `repograph.rescan` | `{ codebase_path?, include_patterns? }` | `{ entities_count, relationships_count }` |
+| `find_indexed_symbol_references` | `{ query, repository, file_path?, scope? }` | `{ results, graph_summary }` |
+| `index_codebase` | `{ path, repository }` | `{ success, file_count, node_count, edge_count }` |
+| `get_indexed_symbol_tree` | `{ symbol, repository, direction?, max_depth?, project_path? }` | `{ symbol, call_tree }` |
+| `get_indexed_symbol_dependencies` | `{ repository, project_path? }` | `{ dependencies, cycles, summary }` |
+| `get_indexed_symbol_insights` | `{ repository, symbols?, queries?, project_path?, include_docs? }` | `{ definitions, usages, documentation }` |
 
 **Architecture:**
 
@@ -365,34 +366,53 @@ Input Code
 │  graph-engine.ts ──→ parse() ──→ traverse()        │
 │                      ↓                            │
 │  graph-store.ts  ──→ SQLite DB (better-sqlite3)    │
-│                      ├── entities table            │
-│                      ├── relationships table       │
-│                      └── metadata table            │
+│                      ├── nodes table               │
+│                      ├── edges table               │
+│                      ├── indexed_files table       │
+│                      └── graph_meta table          │
 │                                                    │
 │  file-indexer.ts ──→ walk directory, parse files   │
 │  adapter.ts      ──→ future: Codebase-Memory wrap  │
 └──────────────────────────────────────────────────┘
 ```
 
-**Schema (SQLite):**
+**Schema (SQLite v2):**
 
 ```sql
-CREATE TABLE entities (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  kind TEXT NOT NULL,        -- 'file', 'class', 'function', 'interface'
-  file_path TEXT,
-  line_start INTEGER,
-  line_end INTEGER,
-  metadata TEXT              -- JSON blob
+CREATE TABLE graph_meta (
+  key   TEXT NOT NULL PRIMARY KEY,
+  value TEXT NOT NULL
 );
 
-CREATE TABLE relationships (
-  id TEXT PRIMARY KEY,
-  source_entity_id TEXT REFERENCES entities(id),
-  target_entity_id TEXT REFERENCES entities(id),
-  kind TEXT NOT NULL,        -- 'imports', 'extends', 'implements', 'calls', 'contains'
-  metadata TEXT
+CREATE TABLE nodes (
+  id        TEXT NOT NULL PRIMARY KEY,
+  repository TEXT NOT NULL DEFAULT 'default',
+  type      TEXT NOT NULL CHECK (type IN ('file','class','function','interface','type','variable','export')),
+  label     TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  metadata  TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE edges (
+  id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  from_id   TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  to_id     TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+  type      TEXT NOT NULL CHECK (type IN ('defines','imports','calls','extends','implements')),
+  repository TEXT NOT NULL DEFAULT 'default',
+  metadata  TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(from_id, to_id, type)
+);
+
+CREATE TABLE indexed_files (
+  file_path  TEXT NOT NULL,
+  repository TEXT NOT NULL DEFAULT 'default',
+  file_hash  TEXT NOT NULL,
+  indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  node_count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (file_path, repository)
 );
 ```
 

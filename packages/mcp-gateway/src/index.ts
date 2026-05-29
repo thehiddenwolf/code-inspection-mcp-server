@@ -366,6 +366,7 @@ export const TOOLS: ToolDef[] = [
       properties: {
         query: { type: 'string', description: 'Natural language or structured query' },
         file_path: { type: 'string', description: 'Optional file path to scope the query' },
+        repository: { type: 'string', description: 'Repository or codebase name to filter nodes' },
         scope: {
           type: 'string',
           enum: ['file', 'module', 'project'],
@@ -373,7 +374,7 @@ export const TOOLS: ToolDef[] = [
           description: 'Query scope',
         },
       },
-      required: ['query'],
+      required: ['query', 'repository'],
     },
   },
   {
@@ -384,8 +385,9 @@ export const TOOLS: ToolDef[] = [
       type: 'object',
       properties: {
         path: { type: 'string', description: 'Root path of the codebase to index' },
+        repository: { type: 'string', description: 'Repository or codebase name to segment these nodes' },
       },
-      required: ['path'],
+      required: ['path', 'repository'],
     },
   },
 
@@ -581,8 +583,10 @@ export const TOOLS: ToolDef[] = [
           description: 'Optional list of specific queries to execute'
         },
         project_path: { type: 'string', description: 'Optional project root path' },
+        repository: { type: 'string', description: 'Repository or codebase name to filter nodes' },
         include_docs: { type: 'boolean', default: true, description: 'Whether to scan markdown documentation' }
-      }
+      },
+      required: ['repository']
     }
   },
   {
@@ -626,9 +630,10 @@ export const TOOLS: ToolDef[] = [
         symbol: { type: 'string', description: 'Name of the function or method' },
         direction: { type: 'string', enum: ['incoming', 'outgoing', 'both'], default: 'both', description: 'Direction to trace calls' },
         max_depth: { type: 'integer', default: 3, description: 'Maximum recursion depth' },
-        project_path: { type: 'string', description: 'Optional project root path' }
+        project_path: { type: 'string', description: 'Optional project root path' },
+        repository: { type: 'string', description: 'Repository or codebase name to filter nodes' }
       },
-      required: ['symbol']
+      required: ['symbol', 'repository']
     }
   },
   {
@@ -638,8 +643,10 @@ export const TOOLS: ToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        project_path: { type: 'string', description: 'Optional project root path' }
-      }
+        project_path: { type: 'string', description: 'Optional project root path' },
+        repository: { type: 'string', description: 'Repository or codebase name to filter nodes' }
+      },
+      required: ['repository']
     }
   }
 ];
@@ -754,14 +761,15 @@ export async function executeTool(name: string, args: any): Promise<string> {
     case 'find_indexed_symbol_references': {
       const query = String(args?.query ?? '');
       const filePath = args?.file_path ? String(args.file_path) : undefined;
+      const repository = args?.repository ? String(args.repository) : undefined;
       const scope = (args?.scope) ?? 'project';
       const context = getRepoContext(filePath);
       const { graph, indexedFiles } = context;
-      graph.query({ query, filePath, scope });
+      graph.query({ query, filePath, scope, repository });
 
       const root = context.currentProjectRoot || lastActiveRoot;
 
-      const definitions = graph.findDefinitions(query, filePath).map((node) => {
+      const definitions = graph.findDefinitions(query, filePath, repository).map((node) => {
         let lineOfCode = `[Definition] ${node.type} ${node.label}`;
         const lineNumber = (node.metadata?.line as number) ?? 1;
         const fullPath = path.isAbsolute(node.filePath) ? node.filePath : path.join(root, node.filePath);
@@ -778,6 +786,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
         return {
           file: node.filePath,
+          repository: node.repository,
           class_or_table: 'None',
           method: 'None',
           line_number: lineNumber,
@@ -787,14 +796,23 @@ export async function executeTool(name: string, args: any): Promise<string> {
         };
       });
 
-      let targetFiles = indexedFiles;
+      let targetFiles = new Set<string>();
+      if (repository) {
+        const repoNodes = graph.getAllNodes().filter(n => n.repository === repository && n.type === 'file');
+        for (const n of repoNodes) {
+          targetFiles.add(n.filePath);
+        }
+      } else {
+        targetFiles = indexedFiles;
+      }
+
       if (filePath) {
         const absTarget = path.isAbsolute(filePath)
           ? filePath
           : path.resolve(root, filePath);
 
         targetFiles = new Set(
-          Array.from(indexedFiles).filter((f) => {
+          Array.from(targetFiles).filter((f) => {
             const absF = path.isAbsolute(f) ? f : path.resolve(root, f);
             try {
               const stat = fs.statSync(absTarget);
@@ -812,6 +830,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
 
       const usages = findCodeReferences(query, root, targetFiles).map((ref) => ({
         ...ref,
+        repository,
         is_definition: false,
         symbol_type: 'reference',
       }));
@@ -821,10 +840,15 @@ export async function executeTool(name: string, args: any): Promise<string> {
     }
     case 'index_codebase': {
       const dirPath = String(args?.path ?? '');
+      const repositoryArg = args?.repository ? String(args.repository) : undefined;
       const context = getRepoContext(dirPath);
-      const { graph, indexer, indexedFiles, store } = context;
-      const project = indexer.indexDirectory(dirPath);
-      const stats = indexer.applyProjectToGraph(graph, project);
+      const { graph, indexedFiles, store } = context;
+
+      const repository = repositoryArg ?? path.basename(path.resolve(dirPath)) ?? 'default';
+      const repoIndexer = new FileIndexer(store, repository);
+
+      const project = repoIndexer.indexDirectory(dirPath, undefined, repository);
+      const stats = repoIndexer.applyProjectToGraph(graph, project);
 
       for (const f of project.files) {
         indexedFiles.add(f.filePath);
@@ -832,7 +856,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
           const fullPath = path.join(project.rootDir, f.filePath);
           const content = fs.readFileSync(fullPath, 'utf-8');
           const hash = computeFileHash(content);
-          store.recordIndexedFile(f.filePath, hash, f.nodes.length);
+          store.recordIndexedFile(f.filePath, hash, f.nodes.length, repository);
           for (const node of f.nodes) {
             try { store.insertNode(node); } catch { /* duplicate */ }
           }
@@ -845,6 +869,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify({
         status: 'indexed',
         root: project.rootDir,
+        repository,
         files_indexed: project.files.length,
         total_symbols: project.totalSymbols,
         nodes_added: stats.nodesAdded,
@@ -969,11 +994,22 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const symbols = args?.symbols as string[] | undefined;
       const queries = args?.queries as any[] | undefined;
       const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const repository = args?.repository ? String(args.repository) : undefined;
       const includeDocs = args?.include_docs !== false;
 
       const context = getRepoContext(projectPath);
       const root = context.currentProjectRoot || lastActiveRoot;
-      const result = getInsights({ symbols, queries, include_docs: includeDocs }, root, context.graph, context.indexedFiles, findCodeReferences);
+
+      let targetFiles = context.indexedFiles;
+      if (repository) {
+        targetFiles = new Set(
+          context.graph.getAllNodes()
+            .filter(n => n.repository === repository && n.type === 'file')
+            .map(n => n.filePath)
+        );
+      }
+
+      const result = getInsights({ symbols, queries, include_docs: includeDocs, repository }, root, context.graph, targetFiles, findCodeReferences);
       resultText = JSON.stringify(result, null, 2);
       break;
     }
@@ -998,21 +1034,23 @@ export async function executeTool(name: string, args: any): Promise<string> {
       const direction = (args?.direction as 'incoming' | 'outgoing' | 'both') ?? 'both';
       const maxDepth = Number(args?.max_depth ?? 3);
       const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const repository = args?.repository ? String(args.repository) : undefined;
 
       if (!symbol) {
         throw new Error("Parameter 'symbol' is required.");
       }
 
       const context = getRepoContext(projectPath);
-      const result = getCallHierarchy(symbol, direction, context.graph, maxDepth);
+      const result = getCallHierarchy(symbol, direction, context.graph, maxDepth, repository);
       resultText = JSON.stringify(result, null, 2);
       break;
     }
 
     case 'get_indexed_symbol_dependencies': {
       const projectPath = args?.project_path ? String(args.project_path) : undefined;
+      const repository = args?.repository ? String(args.repository) : undefined;
       const context = getRepoContext(projectPath);
-      const result = getDependencyReport(context.graph);
+      const result = getDependencyReport(context.graph, repository);
       resultText = JSON.stringify(result, null, 2);
       break;
     }

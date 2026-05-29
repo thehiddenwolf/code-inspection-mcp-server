@@ -119,10 +119,13 @@ export class GraphEngine {
 
       // Apply scope filter
       if (q.scope === 'file' && q.filePath && node.filePath !== q.filePath) continue;
+      // Apply repository filter
+      if (q.repository && node.repository !== q.repository) continue;
 
       if (
         node.id.toLowerCase().includes(queryStr) ||
-        node.label.toLowerCase().includes(queryStr)
+        node.label.toLowerCase().includes(queryStr) ||
+        node.id.toLowerCase().replace(/^[^:]+::/, '').includes(queryStr)
       ) {
         seedNodes.push(node);
       }
@@ -186,11 +189,14 @@ export class GraphEngine {
   findReferences(
     symbolName: string,
     projectPath?: string,
+    repository?: string,
   ): { node: GraphNode; references: GraphEdge[] }[] {
     const results: { node: GraphNode; references: GraphEdge[] }[] = [];
     const symbolNodes = this.findSymbolNodes(symbolName);
 
     for (const node of symbolNodes) {
+      if (repository && node.repository !== repository) continue;
+
       const incoming = this.getIncomingEdges(node.id);
       const refs = incoming.filter(
         (e) => e.type === 'imports' || e.type === 'calls',
@@ -218,7 +224,7 @@ export class GraphEngine {
    * to that file. Looks for nodes that represent the definition and have
    * incoming 'defines' edges or are themselves declaration-type nodes.
    */
-  findDefinitions(symbolName: string, filePath?: string): GraphNode[] {
+  findDefinitions(symbolName: string, filePath?: string, repository?: string): GraphNode[] {
     const candidates: GraphNode[] = [];
     const declTypes: GraphNodeType[] = [
       'class', 'function', 'interface', 'type', 'variable', 'export',
@@ -229,11 +235,14 @@ export class GraphEngine {
       const nameMatch =
         node.id.toLowerCase() === symbolName.toLowerCase() ||
         node.id.toLowerCase().endsWith(`.${symbolName.toLowerCase()}`) ||
-        node.label.toLowerCase() === symbolName.toLowerCase();
+        node.label.toLowerCase() === symbolName.toLowerCase() ||
+        node.id.toLowerCase().replace(/^[^:]+::/, '') === symbolName.toLowerCase() ||
+        node.id.toLowerCase().replace(/^[^:]+::/, '').endsWith(`.${symbolName.toLowerCase()}`);
 
       if (!nameMatch) return;
       if (!declTypeSet.has(node.type)) return;
       if (filePath && node.filePath !== filePath) return;
+      if (repository && node.repository !== repository) return;
 
       candidates.push(node);
     });
@@ -247,11 +256,18 @@ export class GraphEngine {
    * Normalize a symbol name for use as a node ID.
    * Convention: `file:<path>` for files, `sym:<name>` for symbols.
    */
-  static nodeId(type: 'file', path: string): string;
-  static nodeId(type: 'sym', name: string, filePath?: string): string;
-  static nodeId(type: 'file' | 'sym', name: string, filePath?: string): string {
-    if (type === 'file') return `file:${name}`;
-    return filePath ? `sym:${name}@${filePath}` : `sym:${name}`;
+  static nodeId(type: 'file', path: string, repository?: string): string;
+  static nodeId(type: 'sym', name: string, filePath?: string, repository?: string): string;
+  static nodeId(type: 'file' | 'sym', name: string, filePathOrRepo?: string, repository?: string): string {
+    let activeRepo = repository;
+    let filePath = filePathOrRepo;
+    if (type === 'file') {
+      activeRepo = filePathOrRepo;
+      filePath = undefined;
+    }
+    const prefix = (activeRepo && activeRepo !== 'default') ? `${activeRepo}::` : '';
+    if (type === 'file') return `${prefix}file:${name}`;
+    return filePath ? `${prefix}sym:${name}@${filePath}` : `${prefix}sym:${name}`;
   }
 
   /** Count of nodes in the graph */
