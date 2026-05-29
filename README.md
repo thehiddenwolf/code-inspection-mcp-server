@@ -17,14 +17,16 @@
   - [Antigravity](#antigravity)
   - [Hermes-Agent](#hermes-agent)
   - [Claude Desktop](#claude-desktop)
-  - [GitHub Copilot & Cursor / VS Code](#github-copilot--cursor--vs-code)
+  - [Cursor IDE](#cursor-ide)
 - [Detailed Tools Usage & Examples](#detailed-tools-usage--examples)
   - [1. TokenSqueezer](#1-tokensqueezer)
   - [2. ArchitectureShepherd](#2-architectureshepherd)
-  - [3. PatternMiner](#3-patternminer)
-  - [4. RepoGraph](#4-repograph)
+  - [3. RepoGraph](#3-repograph)
+  - [4. PatternMiner](#4-patternminer)
   - [5. TaskRouter](#5-taskrouter)
   - [6. SOLIDEnforcer](#6-solidenforcer)
+  - [7. LintFixer](#7-lintfixer)
+  - [8. Insights & Refactoring](#8-insights--refactoring)
 - [Configuration](#configuration)
 - [Development](#development)
 - [Contributing](#contributing)
@@ -46,14 +48,15 @@ The server is structured as a monorepo containing multiple specialized analysis 
 
 | Package | Purpose |
 |---|---|
-| **TokenSqueezer** | Reduces source code token footprint via AST manipulation (3 aggressiveness levels, 6 languages). |
+| **TokenSqueezer** | Reduces source code token footprint via AST manipulation and regex fallbacks (supports JavaScript, TypeScript, Python, Go, RPG, COBOL, Bash, PowerShell). |
 | **ArchitectureShepherd** | Validates structural layer boundaries using a project `ARCHITECTURE.md` manifest. |
-| **RepoGraph** | Indexes codebases to build in-memory regex-based code knowledge graphs for querying code structure. |
-| **PatternMiner** | Scans codebases for custom patterns, anti-patterns, code smells, and dead code. |
+| **RepoGraph** | Indexes codebases to build SQLite-based codebase dependency and call hierarchy graphs. |
+| **PatternMiner** | Scans codebases for custom patterns, anti-patterns, code smells, and structural duplicates. |
 | **SOLIDEnforcer** | Audits files against SOLID programming principles (SRP, OCP, LSP, ISP, DIP). |
 | **TaskRouter** | Estimates programming task complexity and decomposes them into sequential steps. |
+| **LintFixer** | Executes formatting and fixing tools dynamically defined in registered language packs. |
 
-All of these tools are accessible through a unified gateway CLI: `code-inspection-mcp`.
+All of these tools are accessible through a unified gateway CLI: `code-inspection-mcp-gateway`.
 
 ---
 
@@ -165,11 +168,8 @@ Add the following block to the `mcpServers` object:
 }
 ```
 
-### GitHub Copilot & Cursor / VS Code
+### Cursor IDE
 
-For developers using **GitHub Copilot**, **Cursor**, or **VS Code**, you can interface with the server using compatible MCP extensions/clients.
-
-#### Cursor IDE
 1. Open Cursor and navigate to **Settings > Features > MCP**.
 2. Click **+ Add New MCP Server**.
 3. Fill in the fields:
@@ -178,40 +178,21 @@ For developers using **GitHub Copilot**, **Cursor**, or **VS Code**, you can int
    - **Command**: `node /absolute/path/to/code-inspection-mcp-server/packages/cli/dist/index.js start`
 4. Click **Save**.
 
-#### VS Code (via Continue extension)
-Add the configuration to your `~/.continue/config.json` file:
-
-```json
-{
-  "experimental": {
-    "servers": {
-      "code-inspection-mcp": {
-        "command": "node",
-        "args": [
-          "/absolute/path/to/code-inspection-mcp-server/packages/cli/dist/index.js",
-          "start"
-        ]
-      }
-    }
-  }
-}
-```
-
 ---
 
 ## Detailed Tools Usage & Examples
 
-Here is a full breakdown of the tools exposed by the `code-inspection-mcp` server.
+Here is a full breakdown of the tools exposed by the `code-inspection-mcp-gateway` server.
 
 ### 1. TokenSqueezer
 
 Prunes non-structural elements (comments, import blocks, class private variables, implementation bodies) from target files, converting them into skeletal structural maps to fit into LLM context windows.
 
-#### `token_squeezer_squeeze`
+#### `token_squeezer_read_symbols`
 - **Description**: Squeezes code either from a raw string or read directly from disk.
 - **Inputs**:
   - `code` (string, optional): The raw code contents to squeeze.
-  - `language` (enum, optional: `'javascript'`, `'typescript'`, `'python'`, `'go'`, `'jsx'`, `'tsx'`): Source language.
+  - `language` (enum, optional: `'javascript'`, `'typescript'`, `'python'`, `'go'`, `'jsx'`, `'tsx'`, `'rpg'`, `'cobol'`, `'bash'`, `'powershell'`): Source language.
   - `filePath` (string, optional): Path to the source file on disk.
   - `options` (object, optional):
     - `preserve_comments` (boolean, default `false`): Keep comments.
@@ -220,22 +201,10 @@ Prunes non-structural elements (comments, import blocks, class private variables
     - `max_tokens` (integer): Threshold ceiling for output tokens.
     - `include_private` (boolean, default `false`): Include private members.
     - `output_format` (enum: `'text'`, `'json'`, `'both'`, default `'both'`).
+    - `outline` (boolean, default `false`): If true, returns a clean hierarchical structural outline format.
 - **CLI Example**:
   ```bash
-  code-inspection-mcp run token_squeezer_squeeze '{"code": "import { x } from \"./x\";\n// Comment\nexport class A {\n  private key = 1;\n  public run() { console.log(this.key); }\n}", "language": "typescript"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "original": "...",
-    "squeezed": "import { x } from \"./x\";\nexport class A {\n  public run(): void;\n}",
-    "original_tokens": 42,
-    "squeezed_tokens": 15,
-    "reduction_ratio": 0.642,
-    "aggressiveness": "balanced",
-    "language": "typescript",
-    "node_counts": { "original": 12, "removed": 5 }
-  }
+  code-inspection-mcp run token_squeezer_read_symbols '{"filePath": "src/processor.ts", "options": {"aggressiveness": "balanced"}}'
   ```
 
 ---
@@ -249,65 +218,51 @@ Validates layer dependencies and enforces separation of concerns (e.g., domain l
 - **Inputs**:
   - `path` (string, optional): Local file path to `ARCHITECTURE.md`.
   - `content` (string, optional): Raw manifest markdown text.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run architecture_shepherd_load_manifest '{"path": "ARCHITECTURE.md"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "valid": true,
-    "violations": [],
-    "warnings": []
-  }
-  ```
 
 #### `architecture_shepherd_check`
 - **Description**: Audits list of files for architecture layer-crossings.
 - **Inputs**:
   - `paths` (string[]): Files/directories to check.
   - `manifest_id` (string): Registry identifier of a loaded manifest.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run architecture_shepherd_check '{"paths": ["packages/shared/src/index.ts"], "manifest_id": "default"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "scan_id": "550e8400-e29b-41d4-a716-446655440000",
-    "timestamp": "2026-05-28T10:33:00.000Z",
-    "target": "files",
-    "violations": [
-      {
-        "rule_id": "layer_boundary",
-        "rule_name": "Strict Dependency Violation",
-        "severity": "error",
-        "message": "File in 'domain' imports '@hermes/infrastructure' but dependencies are prohibited.",
-        "locations": [{ "file": "packages/cli/src/index.ts", "line": 15 }],
-        "category": "layer_boundary"
-      }
-    ],
-    "summary": {
-      "total_violations": 1,
-      "by_severity": { "critical": 0, "error": 1, "warning": 0, "info": 0 },
-      "passed": false
-    }
-  }
-  ```
 
 #### `architecture_shepherd_check_diff`
 - **Description**: Validates only files modified in a git diff to verify PR safety.
 - **Inputs**:
   - `diff` (string): Raw output from `git diff`.
   - `manifest_id` (string): Registry identifier.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run architecture_shepherd_check_diff '{"diff": "diff --git a/src/core.ts b/src/core.ts ...", "manifest_id": "default"}'
-  ```
 
 ---
 
-### 3. PatternMiner
+### 3. RepoGraph
+
+Scans project files to construct a relational knowledge index mapping classes, interfaces, function calls, and import statements, supporting direct structural querying.
+
+#### `repograph_index`
+- **Description**: Builds a knowledge graph of a path directory.
+- **Inputs**:
+  - `path` (string): Directory folder to index.
+
+#### `repograph_query`
+- **Description**: Query indexed symbols or structures.
+- **Inputs**:
+  - `query` (string): Natural language or symbol name to query.
+  - `file_path` (string, optional): Restricts query to specific scope.
+  - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
+
+#### `repograph_get_call_hierarchy`
+- **Description**: Returns incoming and outgoing calls for a function symbol.
+- **Inputs**:
+  - `symbol` (string): Target function name.
+  - `direction` (enum: `'incoming'`, `'outgoing'`, `'both'`).
+
+#### `repograph_get_dependencies`
+- **Description**: Analyzes imports to map file-level dependencies and detect circular imports.
+- **Inputs**:
+  - `project_path` (string, optional).
+
+---
+
+### 4. PatternMiner
 
 Finds code smells, structural clones, duplicate segments, and scans for unused code fragments.
 
@@ -316,71 +271,14 @@ Finds code smells, structural clones, duplicate segments, and scans for unused c
 - **Inputs**:
   - `paths` (string[]): Paths to scan.
   - `patterns` (string[], optional): Filter for specific pattern IDs.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run pattern_miner_scan '{"paths": ["packages/cli/src"]}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "matches": [
-      {
-        "pattern": "nested-callbacks",
-        "line": 42,
-        "column": 4,
-        "message": "Found deeply nested callback layers. Prefer using async/await.",
-        "severity": "warning"
-      }
-    ],
-    "duration_ms": 28
-  }
-  ```
 
 #### `pattern_miner_find_clones`
 - **Description**: Matches code blocks for similar clones using Semgrep engine comparisons.
 - **Inputs**:
   - `fragment` (string): Reference code snippet.
-  - `language` (enum): Snippet language.
+  - `language` (string): Snippet language.
   - `searchPath` (string): Folder path to search in.
   - `minConfidence` (number, default `0.6`): Minimum match confidence.
-
----
-
-### 4. RepoGraph
-
-Scans project files to construct an in-memory knowledge index mapping classes, interfaces, function calls, and import statements, supporting direct structural querying.
-
-#### `repograph_index`
-- **Description**: Builds an index of a path directory.
-- **Inputs**:
-  - `path` (string): Directory folder to index.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run repograph_index '{"path": "/absolute/path/to/project"}'
-  ```
-
-#### `repograph_query`
-- **Description**: Query indexed symbols or structures.
-- **Inputs**:
-  - `query` (string): Natural language or symbol name to query.
-  - `file_path` (string, optional): Restricts query to specific scope.
-  - `scope` (enum: `'file'`, `'module'`, `'project'`, default `'project'`).
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run repograph_query '{"query": "find callers of runCli", "scope": "project"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "results": [
-      {
-        "content": "const res = runCli('--version');",
-        "file_path": "packages/cli/test/cli.test.ts",
-        "relevance_score": 0.98
-      }
-    ]
-  }
-  ```
 
 ---
 
@@ -392,41 +290,11 @@ Examines task description prompts to calculate execution complexity and estimate
 - **Description**: Analyzes complexity metrics and requirements.
 - **Inputs**:
   - `task_description` (string): Task summary.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run task_router_estimate '{"task_description": "Fix typo in README"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "complexity": "simple",
-    "recommended_model": "gpt-4o-mini",
-    "estimated_cost": 0.0015,
-    "estimated_tokens": 150
-  }
-  ```
 
 #### `task_router_decompose`
 - **Description**: Breaks a task description down into sequential stages.
 - **Inputs**:
   - `task_description` (string): Full task specification.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run task_router_decompose '{"task_description": "Create a user registration endpoint with JWT"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "complexity": "medium",
-    "recommended_model": "claude-3-5-sonnet",
-    "estimated_cost": 0.045,
-    "estimated_tokens": 9000,
-    "subtasks": [
-      { "name": "Define user model schema", "description": "Construct migrations and user DB fields.", "estimated_tokens": 1500 },
-      { "name": "Implement registration controller", "description": "Validate payloads and hash passwords.", "estimated_tokens": 3000 }
-    ]
-  }
-  ```
 
 ---
 
@@ -439,33 +307,6 @@ Validates codebase adherence to Single Responsibility, Open-Closed, Liskov Subst
 - **Inputs**:
   - `code` (string): Raw source code lines.
   - `file_path` (string): File path descriptor.
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run solid_enforcer_audit '{"code": "class DB { saveUser() {} sendMail() {} }", "file_path": "db.ts"}'
-  ```
-- **Response Format**:
-  ```json
-  {
-    "scan_id": "762c95e1-8f5c-42b7-84bc-263aef8c1303",
-    "timestamp": "2026-05-28T10:33:00.000Z",
-    "target": "db.ts",
-    "violations": [
-      {
-        "rule_id": "solid_srp",
-        "rule_name": "Single Responsibility Violation",
-        "severity": "warning",
-        "message": "Class DB handles user persistence and mail dispatch. Consider separating concerns.",
-        "locations": [{ "file": "db.ts", "line": 1 }],
-        "category": "solid_srp"
-      }
-    ],
-    "summary": {
-      "total_violations": 1,
-      "by_severity": { "critical": 0, "error": 0, "warning": 1, "info": 0 },
-      "passed": false
-    }
-  }
-  ```
 
 #### `solid_enforcer_generate_di_template`
 - **Description**: Creates dependency-injected class stubs for a list of interface dependencies.
@@ -473,31 +314,45 @@ Validates codebase adherence to Single Responsibility, Open-Closed, Liskov Subst
   - `class_name` (string): Target class name.
   - `interfaces` (string[]): Dependencies names.
   - `language` (enum: `'typescript'`, `'javascript'`, default `'typescript'`).
-- **CLI Example**:
-  ```bash
-  code-inspection-mcp run solid_enforcer_generate_di_template '{"class_name": "ProductManager", "interfaces": ["Repository", "Notifier"]}'
-  ```
-- **Response Format**: (Standard text output template)
-  ```typescript
-  export class ProductManager {
-    constructor(
-      private readonly repository: IRepository,
-      private readonly notifier: INotifier
-    ) {}
-  }
-  ```
+
+---
+
+### 7. LintFixer
+
+Automates codebase layout and rule adjustments dynamically resolved from registered language pack formatters.
+
+#### `lint_fixer_fix`
+- **Description**: Automatically formats and solves linter errors on a file.
+- **Inputs**:
+  - `filePath` (string): Target source file.
+  - `dryRun` (boolean, default `false`): If true, returns the output diff without altering the file on disk.
+
+---
+
+### 8. Insights & Refactoring
+
+Provides atomic batch operations and symbol usage tracking across multiple files.
+
+#### `insight_reference_tracker`
+- **Description**: Scans symbols across code definition blocks and markdown documents to track references.
+- **Inputs**:
+  - `symbol` (string): Symbol to trace.
+  - `project_path` (string, optional): Root folder path.
+
+#### `get_insights`
+- **Description**: Bundles definitions, usages, and docs tracing queries for multiple symbols into a single request.
+- **Inputs**:
+  - `symbols` (string[]): List of symbols.
+  - `queries` (array): Tracing operations.
+
+#### `refactor_execute_batch`
+- **Description**: Atomically runs a transactional sequence of refactor operations (rename, replace, move, create, delete) across files.
+- **Inputs**:
+  - `operations` (array): Refactoring steps to run in order.
 
 ---
 
 ## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | Port used if executing via SSE transport |
-| `LOG_LEVEL` | `info` | Logger verbosity (`debug`, `info`, `warn`, `error`) |
-| `NODE_ENV` | `development` | Environment mode |
 
 ### ARCHITECTURE.md Manifest
 
@@ -541,8 +396,7 @@ npm test
 Format and lint:
 
 ```bash
-npm run lint:eslint
-npm run lint:tsc
+npm run lint
 ```
 
 ---
