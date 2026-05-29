@@ -237,7 +237,7 @@ Validates layer dependencies and enforces separation of concerns (e.g., domain l
 
 Scans project files to construct a relational knowledge index mapping classes, interfaces, function calls, and import statements, supporting direct structural querying.
 
-#### `repograph_index`
+#### `index_codebase`
 - **Description**: Builds a knowledge graph of a path directory.
 - **Inputs**:
   - `path` (string): Directory folder to index.

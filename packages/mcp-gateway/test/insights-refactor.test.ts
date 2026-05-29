@@ -68,9 +68,9 @@ The function \`greet\` is internal.
       client.connect(clientTransport),
     ]);
 
-    // Index the temporary project via repograph_index
+    // Index the temporary project via index_codebase
     await client.callTool({
-      name: 'repograph_index',
+      name: 'index_codebase',
       arguments: {
         path: tempDir,
       },

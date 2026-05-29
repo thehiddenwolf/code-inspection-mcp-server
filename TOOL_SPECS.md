@@ -157,7 +157,7 @@ Checks a git diff against an architecture manifest for violations introduced in 
 
 Indexes codebases to build in-memory regex-based code knowledge graphs for querying code structure, dependencies, and calls.
 
-### 3.1 `repograph_index`
+### 3.1 `index_codebase`
 
 Indexes a codebase folder into the knowledge graph.
 

@@ -377,7 +377,7 @@ export const TOOLS: ToolDef[] = [
     },
   },
   {
-    name: 'repograph_index',
+    name: 'index_codebase',
     description: 'Index a codebase into the knowledge graph for querying.',
     version: '0.1.0',
     inputSchema: {
@@ -779,7 +779,7 @@ export async function executeTool(name: string, args: any): Promise<string> {
       resultText = JSON.stringify(codeReferences, null, 2);
       break;
     }
-    case 'repograph_index': {
+    case 'index_codebase': {
       const dirPath = String(args?.path ?? '');
       const context = getRepoContext(dirPath);
       const { graph, indexer, indexedFiles, store } = context;
